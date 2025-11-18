@@ -1801,3 +1801,2175 @@ wasm-bindgen = "0.2"
 **预计完整版完成**：+12 个月
 
 **记住**：这是一个学习项目，重点是**技术深度**和**知识积累**，而不仅仅是快速交付产品。
+
+---
+
+## 代码规范和开源最佳实践
+
+### 概述
+
+作为一个**技术优先的开源学习项目**，代码质量和项目规范至关重要。本节定义了 Mind-Fuse 项目的完整规范体系，确保：
+
+1. ✅ **代码质量**：可维护、可读、可测试
+2. ✅ **协作效率**：统一风格、清晰流程
+3. ✅ **开源友好**：文档完善、贡献门槛低
+4. ✅ **学习价值**：规范本身就是最佳实践的示范
+
+---
+
+## 一、代码风格规范
+
+### 1.1 TypeScript / JavaScript 规范
+
+#### 核心原则
+- **类型优先**：充分利用 TypeScript 类型系统
+- **函数式风格**：优先使用纯函数和不可变数据
+- **明确优于隐式**：避免 `any`，显式声明类型
+- **简洁清晰**：代码即文档
+
+#### ESLint 配置
+
+```javascript
+// eslint.config.mjs
+import js from '@eslint/js';
+import typescript from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
+import prettier from 'eslint-config-prettier';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+
+export default [
+  js.configs.recommended,
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        project: './tsconfig.json',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': typescript,
+      react,
+      'react-hooks': reactHooks,
+    },
+    rules: {
+      // TypeScript 规则
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/explicit-function-return-type': 'warn',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/no-floating-promises': 'error',
+
+      // React 规则
+      'react/react-in-jsx-scope': 'off', // Next.js 14+ 不需要
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+
+      // 通用规则
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'prefer-const': 'error',
+      'no-var': 'error',
+    },
+  },
+  prettier,
+];
+```
+
+#### Prettier 配置
+
+```json
+// .prettierrc
+{
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": true,
+  "quoteProps": "as-needed",
+  "jsxSingleQuote": false,
+  "trailingComma": "es5",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "endOfLine": "lf"
+}
+```
+
+#### 命名规范
+
+```typescript
+// ✅ 好的命名
+// 文件名：kebab-case
+// force-directed-layout.ts
+// user-profile.tsx
+
+// 类型/接口：PascalCase
+interface UserProfile {
+  id: string;
+  name: string;
+}
+
+type ShapeType = 'rectangle' | 'circle' | 'line';
+
+// 函数/变量：camelCase
+function calculateBounds(shape: Shape): Bounds {
+  const boundingBox = getBoundingBox(shape);
+  return boundingBox;
+}
+
+// 常量：UPPER_SNAKE_CASE
+const MAX_ZOOM_LEVEL = 10;
+const DEFAULT_CANVAS_SIZE = 5000;
+
+// 组件：PascalCase
+export function WhiteboardCanvas({ width, height }: Props) {
+  // ...
+}
+
+// 私有成员：前缀 _
+class DocumentStore {
+  private _cache: Map<string, Document>;
+
+  private _invalidateCache(): void {
+    // ...
+  }
+}
+
+// ❌ 避免
+// 单字母变量（除了常见循环变量 i, j, k）
+const x = getUser(); // ❌
+const user = getUser(); // ✅
+
+// 匈牙利命名法
+const strName = 'John'; // ❌
+const name = 'John'; // ✅
+
+// 过于简写
+function calcBnds() {} // ❌
+function calculateBounds() {} // ✅
+```
+
+#### 函数规范
+
+```typescript
+// ✅ 好的函数设计
+
+/**
+ * 计算图形的边界框
+ *
+ * @param shape - 要计算的图形
+ * @returns 边界框坐标
+ *
+ * @example
+ * ```ts
+ * const bounds = calculateBounds(myShape);
+ * console.log(bounds.x, bounds.y, bounds.width, bounds.height);
+ * ```
+ */
+export function calculateBounds(shape: Shape): Bounds {
+  // 1. 函数短小（< 30 行）
+  // 2. 单一职责
+  // 3. 有完整的 JSDoc
+  // 4. 有明确的返回类型
+  // 5. 纯函数（无副作用）
+
+  const { x, y, width, height } = shape;
+  return { x, y, width, height };
+}
+
+// ✅ 优先使用函数式风格
+const activeShapes = shapes.filter((s) => s.active);
+const positions = shapes.map((s) => ({ x: s.x, y: s.y }));
+
+// ❌ 避免大函数
+function doEverything() {
+  // 100+ 行代码
+  // 做了太多事情
+}
+
+// ✅ 拆分为小函数
+function processShapes(shapes: Shape[]) {
+  const validated = validateShapes(shapes);
+  const transformed = transformShapes(validated);
+  const optimized = optimizeLayout(transformed);
+  return optimized;
+}
+```
+
+#### 类型定义规范
+
+```typescript
+// ✅ 优先使用 interface（可扩展）
+export interface Shape {
+  id: string;
+  type: ShapeType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+// ✅ 使用 type 定义联合类型、交叉类型
+export type ShapeType = 'rectangle' | 'circle' | 'line' | 'text';
+export type ReadonlyShape = Readonly<Shape>;
+export type PartialShape = Partial<Shape>;
+
+// ✅ 使用泛型增强复用性
+export interface Repository<T> {
+  find(id: string): Promise<T | null>;
+  save(entity: T): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+export class ShapeRepository implements Repository<Shape> {
+  // ...
+}
+
+// ✅ 避免 any，使用 unknown
+function processData(data: unknown): Result {
+  if (typeof data === 'object' && data !== null) {
+    // 类型收窄
+  }
+}
+
+// ❌ 避免滥用类型断言
+const shape = data as Shape; // ❌ 危险
+
+// ✅ 使用类型守卫
+function isShape(data: unknown): data is Shape {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'id' in data &&
+    'type' in data
+  );
+}
+
+if (isShape(data)) {
+  console.log(data.id); // ✅ 类型安全
+}
+```
+
+#### React 组件规范
+
+```typescript
+// ✅ 好的组件设计
+
+import type { FC, ReactNode } from 'react';
+
+interface ToolbarProps {
+  /** 工具栏位置 */
+  position?: 'top' | 'bottom' | 'left' | 'right';
+  /** 子元素 */
+  children: ReactNode;
+  /** 点击处理 */
+  onAction?: (action: string) => void;
+}
+
+/**
+ * 白板工具栏组件
+ *
+ * @example
+ * ```tsx
+ * <Toolbar position="top" onAction={handleAction}>
+ *   <Button>矩形</Button>
+ *   <Button>圆形</Button>
+ * </Toolbar>
+ * ```
+ */
+export const Toolbar: FC<ToolbarProps> = ({
+  position = 'top',
+  children,
+  onAction,
+}) => {
+  // 1. Props 有完整类型
+  // 2. 使用解构赋值
+  // 3. 有默认值
+  // 4. 有 JSDoc 文档
+
+  return (
+    <div className={`toolbar toolbar-${position}`}>
+      {children}
+    </div>
+  );
+};
+
+// ✅ 使用 hooks
+export function useWhiteboard() {
+  const [shapes, setShapes] = useState<Shape[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // 自定义 hook 逻辑
+
+  return { shapes, selectedId, setShapes, setSelectedId };
+}
+
+// ❌ 避免
+// 1. 组件过大（> 300 行）
+// 2. 过多的 props（> 10 个，应该拆分或使用对象）
+// 3. 逻辑混乱（UI 和业务逻辑耦合）
+```
+
+---
+
+### 1.2 Go 规范
+
+#### 核心原则
+- **简洁清晰**：Go 的哲学
+- **错误处理**：显式检查每个错误
+- **接口小而精**：单一职责
+- **并发安全**：正确使用 goroutine 和 channel
+
+#### golangci-lint 配置
+
+```yaml
+# .golangci.yml
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - golint
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - structcheck
+    - varcheck
+    - ineffassign
+    - deadcode
+    - typecheck
+    - gosec
+    - gocritic
+
+linters-settings:
+  goimports:
+    local-prefixes: mind-fuse
+  golint:
+    min-confidence: 0.8
+  govet:
+    check-shadowing: true
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+```
+
+#### 命名规范
+
+```go
+// ✅ 好的命名
+
+// 包名：小写，单词，简短
+package workspace
+
+// 导出的类型/函数：PascalCase
+type UserService struct {
+    repo UserRepository
+}
+
+func CreateUser(name string) (*User, error) {
+    // ...
+}
+
+// 私有的类型/函数：camelCase
+type userCache struct {
+    data map[string]*User
+}
+
+func validateEmail(email string) error {
+    // ...
+}
+
+// 常量：PascalCase 或 camelCase（Go 习惯）
+const MaxRetries = 3
+const defaultTimeout = 30 * time.Second
+
+// 接口：单方法接口用 -er 后缀
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+
+type UserRepository interface {
+    Find(id string) (*User, error)
+    Save(user *User) error
+}
+
+// ❌ 避免
+// 1. 下划线（除了测试文件 _test.go）
+func get_user() {} // ❌
+func getUser() {}  // ✅
+
+// 2. 过长的名字
+func GetUserByEmailAddressAndPassword() {} // ❌
+func Authenticate() {} // ✅
+
+// 3. 匈牙利命名
+strName := "John" // ❌
+name := "John"    // ✅
+```
+
+#### 代码风格
+
+```go
+// ✅ 好的代码风格
+
+package workspace
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    // 标准库
+
+    // 第三方库
+    "github.com/gin-gonic/gin"
+
+    // 本项目
+    "mind-fuse/pkg/logger"
+)
+
+// Service 工作空间服务
+type Service struct {
+    repo   Repository
+    cache  Cache
+    logger logger.Logger
+}
+
+// Create 创建新工作空间
+//
+// 参数：
+//   - ctx: 上下文
+//   - name: 工作空间名称
+//   - ownerID: 所有者 ID
+//
+// 返回：
+//   - *Workspace: 创建的工作空间
+//   - error: 错误信息
+func (s *Service) Create(ctx context.Context, name, ownerID string) (*Workspace, error) {
+    // 1. 参数验证
+    if name == "" {
+        return nil, fmt.Errorf("name is required")
+    }
+    if ownerID == "" {
+        return nil, fmt.Errorf("ownerID is required")
+    }
+
+    // 2. 业务逻辑
+    ws := &Workspace{
+        ID:        generateID(),
+        Name:      name,
+        OwnerID:   ownerID,
+        CreatedAt: time.Now(),
+    }
+
+    // 3. 错误处理：每个错误都要检查
+    if err := s.repo.Save(ctx, ws); err != nil {
+        s.logger.Error("failed to save workspace", "error", err)
+        return nil, fmt.Errorf("save workspace: %w", err)
+    }
+
+    // 4. 返回
+    return ws, nil
+}
+
+// ✅ 并发安全
+type Cache struct {
+    mu   sync.RWMutex
+    data map[string]*Workspace
+}
+
+func (c *Cache) Get(id string) (*Workspace, bool) {
+    c.mu.RLock()
+    defer c.mu.RUnlock()
+
+    ws, ok := c.data[id]
+    return ws, ok
+}
+
+func (c *Cache) Set(id string, ws *Workspace) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+
+    c.data[id] = ws
+}
+
+// ✅ 使用 context 传递请求范围的值
+func (s *Service) ProcessRequest(ctx context.Context, req *Request) error {
+    // 设置超时
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
+
+    // 传递给下游
+    return s.downstream.Process(ctx, req)
+}
+
+// ❌ 避免
+// 1. 忽略错误
+result, _ := doSomething() // ❌
+
+// 2. panic（除非真的无法恢复）
+if err != nil {
+    panic(err) // ❌
+}
+if err != nil {
+    return fmt.Errorf("failed: %w", err) // ✅
+}
+
+// 3. 全局变量（除了常量）
+var globalCache = make(map[string]string) // ❌
+
+// 4. 使用 init() 函数（难以测试）
+func init() {
+    // ❌ 除非必要
+}
+```
+
+#### 测试规范
+
+```go
+// workspace_test.go
+
+package workspace_test
+
+import (
+    "context"
+    "testing"
+
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+
+    "mind-fuse/internal/workspace"
+)
+
+// ✅ 好的测试
+
+func TestService_Create(t *testing.T) {
+    // 使用表驱动测试
+    tests := []struct {
+        name      string
+        inputName string
+        ownerID   string
+        wantErr   bool
+    }{
+        {
+            name:      "成功创建",
+            inputName: "My Workspace",
+            ownerID:   "user123",
+            wantErr:   false,
+        },
+        {
+            name:      "名称为空",
+            inputName: "",
+            ownerID:   "user123",
+            wantErr:   true,
+        },
+        {
+            name:      "所有者ID为空",
+            inputName: "My Workspace",
+            ownerID:   "",
+            wantErr:   true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Arrange
+            repo := &mockRepository{}
+            svc := workspace.NewService(repo)
+            ctx := context.Background()
+
+            // Act
+            ws, err := svc.Create(ctx, tt.inputName, tt.ownerID)
+
+            // Assert
+            if tt.wantErr {
+                assert.Error(t, err)
+                assert.Nil(t, ws)
+            } else {
+                require.NoError(t, err)
+                assert.NotNil(t, ws)
+                assert.Equal(t, tt.inputName, ws.Name)
+                assert.Equal(t, tt.ownerID, ws.OwnerID)
+            }
+        })
+    }
+}
+
+// Mock
+type mockRepository struct {
+    workspace.Repository
+    saveCalled bool
+}
+
+func (m *mockRepository) Save(ctx context.Context, ws *workspace.Workspace) error {
+    m.saveCalled = true
+    return nil
+}
+```
+
+---
+
+### 1.3 Rust 规范
+
+#### 核心原则
+- **所有权优先**：理解并善用 Rust 所有权系统
+- **类型安全**：利用类型系统避免运行时错误
+- **零成本抽象**：抽象不应带来性能损失
+- **错误处理**：使用 `Result` 和 `Option`
+
+#### Clippy 配置
+
+```toml
+# Cargo.toml
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+nursery = "warn"
+cargo = "warn"
+
+# 允许的规则
+too_many_arguments = "allow"
+module_name_repetitions = "allow"
+```
+
+#### Rustfmt 配置
+
+```toml
+# rustfmt.toml
+edition = "2021"
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heuristics = "Default"
+reorder_imports = true
+reorder_modules = true
+remove_nested_parens = true
+use_field_init_shorthand = true
+use_try_shorthand = true
+```
+
+#### 命名规范
+
+```rust
+// ✅ 好的命名
+
+// 模块名：snake_case
+mod force_directed;
+mod auto_align;
+
+// 类型/结构体：PascalCase
+pub struct Document {
+    id: DocumentId,
+    items: Vec<Item>,
+}
+
+pub enum ShapeType {
+    Rectangle,
+    Circle,
+    Line,
+}
+
+// 函数/方法/变量：snake_case
+pub fn calculate_bounds(shape: &Shape) -> Bounds {
+    let bounding_box = get_bounding_box(shape);
+    bounding_box
+}
+
+// 常量：UPPER_SNAKE_CASE
+const MAX_ITEMS: usize = 10000;
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+
+// Trait：形容词或名词
+pub trait Renderable {
+    fn render(&self, ctx: &RenderContext);
+}
+
+pub trait Iterator {
+    type Item;
+    fn next(&mut self) -> Option<Self::Item>;
+}
+
+// 生命周期参数：短小，有意义
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    if x.len() > y.len() { x } else { y }
+}
+
+// 泛型参数：单字母或 PascalCase
+fn process<T>(item: T) -> Result<T, Error> {
+    // ...
+}
+
+struct Repository<TEntity, TId> {
+    // ...
+}
+
+// ❌ 避免
+// 1. camelCase（Rust 用 snake_case）
+fn calculateBounds() {} // ❌
+fn calculate_bounds() {} // ✅
+
+// 2. 匈牙利命名
+let str_name = "John"; // ❌
+let name = "John"; // ✅
+```
+
+#### 代码风格
+
+```rust
+// ✅ 好的代码风格
+
+use std::sync::Arc;
+use serde::{Deserialize, Serialize};
+
+/// CRDT 文档
+///
+/// 使用 YATA 算法实现的 CRDT 文档结构
+///
+/// # Examples
+///
+/// ```
+/// use crdt_core::Document;
+///
+/// let mut doc = Document::new(1);
+/// doc.insert(0, "Hello".into());
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Document {
+    client_id: u64,
+    items: Vec<Item>,
+    state: StateVector,
+}
+
+impl Document {
+    /// 创建新文档
+    ///
+    /// # Arguments
+    ///
+    /// * `client_id` - 客户端 ID
+    ///
+    /// # Returns
+    ///
+    /// 新的文档实例
+    pub fn new(client_id: u64) -> Self {
+        Self {
+            client_id,
+            items: Vec::new(),
+            state: StateVector::new(),
+        }
+    }
+
+    /// 插入内容
+    ///
+    /// # Arguments
+    ///
+    /// * `position` - 插入位置
+    /// * `content` - 内容
+    ///
+    /// # Returns
+    ///
+    /// 操作产生的更新
+    ///
+    /// # Errors
+    ///
+    /// 如果位置无效，返回错误
+    pub fn insert(&mut self, position: usize, content: Content) -> Result<Update, Error> {
+        // 1. 参数验证
+        if position > self.items.len() {
+            return Err(Error::InvalidPosition(position));
+        }
+
+        // 2. 创建 Item
+        let item = Item::new(
+            self.client_id,
+            self.state.get_clock(self.client_id),
+            content,
+        );
+
+        // 3. 插入
+        self.items.insert(position, item.clone());
+        self.state.increment(self.client_id);
+
+        // 4. 返回
+        Ok(Update::Insert { item })
+    }
+}
+
+// ✅ 错误处理
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Invalid position: {0}")]
+    InvalidPosition(usize),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
+}
+
+// ✅ 使用 Result 和 Option
+pub fn find_item(&self, id: &ItemId) -> Option<&Item> {
+    self.items.iter().find(|item| &item.id == id)
+}
+
+pub fn load_document(path: &Path) -> Result<Document, Error> {
+    let content = std::fs::read_to_string(path)?;
+    let doc = serde_json::from_str(&content)?;
+    Ok(doc)
+}
+
+// ✅ 善用迭代器
+let sum: usize = self.items
+    .iter()
+    .filter(|item| !item.deleted)
+    .map(|item| item.content.len())
+    .sum();
+
+// ✅ 所有权和借用
+// 不可变借用
+fn print_items(items: &[Item]) {
+    for item in items {
+        println!("{:?}", item);
+    }
+}
+
+// 可变借用
+fn add_item(items: &mut Vec<Item>, item: Item) {
+    items.push(item);
+}
+
+// 转移所有权
+fn take_ownership(items: Vec<Item>) -> Vec<Item> {
+    items
+}
+
+// ❌ 避免
+// 1. 不必要的 clone
+let items = self.items.clone(); // ❌ 如果只需要读
+let items = &self.items; // ✅
+
+// 2. unwrap（除非确定不会 panic）
+let value = option.unwrap(); // ❌
+let value = option.expect("should have value"); // ⚠️ 只在确定的情况
+let value = option.ok_or(Error::Missing)?; // ✅
+
+// 3. 忽略 Result
+function_that_returns_result(); // ❌ 编译器警告
+let _ = function_that_returns_result(); // ⚠️ 明确忽略
+function_that_returns_result()?; // ✅ 传播错误
+
+// 4. unsafe（除非必要，且有充分注释）
+unsafe {
+    // ❌ 尽量避免
+}
+```
+
+#### 测试规范
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    // ✅ 单元测试
+    #[test]
+    fn test_insert_item() {
+        let mut doc = Document::new(1);
+        let content = Content::Text("Hello".into());
+
+        let result = doc.insert(0, content.clone());
+
+        assert!(result.is_ok());
+        assert_eq!(doc.items.len(), 1);
+        assert_eq!(doc.items[0].content, content);
+    }
+
+    #[test]
+    fn test_insert_invalid_position() {
+        let mut doc = Document::new(1);
+
+        let result = doc.insert(10, Content::Text("Hello".into()));
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(Error::InvalidPosition(10))));
+    }
+
+    // ✅ 属性测试（Property Testing）
+    proptest! {
+        #[test]
+        fn test_insert_always_increases_length(
+            content in any::<String>(),
+            position in 0usize..100
+        ) {
+            let mut doc = Document::new(1);
+            let initial_len = doc.items.len();
+
+            if position <= initial_len {
+                let _ = doc.insert(position, Content::Text(content));
+                assert_eq!(doc.items.len(), initial_len + 1);
+            }
+        }
+    }
+
+    // ✅ 基准测试
+    #[bench]
+    fn bench_insert_1000_items(b: &mut Bencher) {
+        b.iter(|| {
+            let mut doc = Document::new(1);
+            for i in 0..1000 {
+                doc.insert(i, Content::Text(format!("Item {}", i))).unwrap();
+            }
+        });
+    }
+}
+```
+
+---
+
+### 1.4 通用规范
+
+#### 注释规范
+
+```typescript
+// ✅ 好的注释
+
+/**
+ * 计算两个矩形的交集
+ *
+ * 使用 Sutherland-Hodgman 算法计算两个轴对齐矩形的交集区域。
+ * 如果矩形不相交，返回 null。
+ *
+ * @param rect1 - 第一个矩形
+ * @param rect2 - 第二个矩形
+ * @returns 交集矩形，如果不相交则返回 null
+ *
+ * @example
+ * ```ts
+ * const rect1 = { x: 0, y: 0, width: 100, height: 100 };
+ * const rect2 = { x: 50, y: 50, width: 100, height: 100 };
+ * const intersection = calculateIntersection(rect1, rect2);
+ * // { x: 50, y: 50, width: 50, height: 50 }
+ * ```
+ *
+ * @see https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm
+ */
+export function calculateIntersection(rect1: Rect, rect2: Rect): Rect | null {
+    // 实现...
+}
+
+// ✅ 代码解释性注释（when WHY is not obvious）
+// 使用二分查找优化性能，因为数组已排序
+const index = binarySearch(sortedArray, target);
+
+// 必须在渲染前清空画布，否则会出现重影
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+// ❌ 避免无用注释
+// 创建一个变量
+const user = getUser(); // ❌ 代码已经很清楚了
+
+// 循环遍历数组
+for (const item of items) {} // ❌
+
+// ❌ 注释掉的代码（应该删除，用 git 管理历史）
+// const oldFunction = () => {
+//   // ...
+// }
+
+// ✅ TODO 注释（应该有 issue 号）
+// TODO(#123): 优化大数据量下的渲染性能
+// FIXME(#456): 修复并发编辑时的冲突
+// HACK: 临时方案，等待上游库修复 bug
+```
+
+---
+
+## 二、Git 提交规范
+
+### 2.1 Conventional Commits
+
+我们遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范，这有助于：
+- 自动生成 CHANGELOG
+- 自动确定语义化版本号
+- 更好的提交历史
+
+#### 提交消息格式
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+#### Type 类型
+
+| Type | 说明 | 示例 |
+|------|------|------|
+| `feat` | 新功能 | `feat(canvas): add infinite canvas support` |
+| `fix` | Bug 修复 | `fix(crdt): resolve conflict in concurrent edits` |
+| `docs` | 文档变更 | `docs(readme): update installation instructions` |
+| `style` | 代码格式（不影响功能） | `style: format code with prettier` |
+| `refactor` | 重构（不是新功能也不是bug修复） | `refactor(editor): extract selection logic` |
+| `perf` | 性能优化 | `perf(render): optimize large canvas rendering` |
+| `test` | 添加或修改测试 | `test(crdt): add concurrent editing tests` |
+| `build` | 构建系统或依赖变更 | `build: upgrade to Next.js 14` |
+| `ci` | CI 配置变更 | `ci: add benchmark workflow` |
+| `chore` | 其他不修改src或test的变更 | `chore: update dependencies` |
+| `revert` | 回滚之前的提交 | `revert: feat(canvas): add infinite canvas` |
+
+#### Scope 范围
+
+常用的 scope：
+
+- `canvas` - 画布相关
+- `editor` - 编辑器相关
+- `crdt` - CRDT 相关
+- `api` - 后端 API
+- `ui` - UI 组件
+- `docs` - 文档
+- `deps` - 依赖
+- `config` - 配置
+
+#### 示例
+
+```bash
+# ✅ 好的提交消息
+
+feat(canvas): add infinite canvas with zoom and pan
+# 新功能，指定了 scope
+
+fix(crdt): resolve race condition in concurrent updates
+
+Properly handle concurrent updates from multiple clients by
+implementing vector clock comparison in the YATA algorithm.
+
+Fixes #123
+# 有详细的 body 说明，关联了 issue
+
+docs(api): add API documentation for workspace endpoints
+
+- Document all REST endpoints
+- Add request/response examples
+- Include error codes
+
+# 有结构化的 body
+
+perf(render): optimize shape rendering for large canvases
+
+Implement virtual rendering to only draw shapes in viewport.
+This improves performance from 15fps to 60fps with 10k shapes.
+
+Benchmark results:
+- Before: 15fps (10k shapes)
+- After: 60fps (10k shapes)
+# 有性能数据
+
+BREAKING CHANGE: Shape interface now requires 'bounds' property
+# 破坏性变更，会触发 major 版本号增加
+
+# ❌ 不好的提交消息
+
+fix bug
+# 太简单，没有说明修复了什么
+
+update code
+# 太模糊
+
+feat: add stuff
+# 不清楚添加了什么
+
+WIP
+# 不应该提交 WIP（work in progress）
+```
+
+#### 提交消息模板
+
+```bash
+# .gitmessage
+
+# <type>[optional scope]: <description>
+# |<----  最多 50 字符  ---->|
+
+# [optional body]
+# |<----  每行最多 72 字符  ---->|
+
+# [optional footer(s)]
+
+# Type 可以是:
+#   feat     新功能
+#   fix      Bug 修复
+#   docs     文档
+#   style    格式
+#   refactor 重构
+#   perf     性能优化
+#   test     测试
+#   build    构建
+#   ci       CI
+#   chore    其他
+#   revert   回滚
+#
+# Scope 可以是: canvas, editor, crdt, api, ui, docs, deps, config
+#
+# Breaking changes: 添加 'BREAKING CHANGE:' 在 footer
+# Issue 关联: 添加 'Fixes #123' 或 'Closes #123'
+```
+
+配置模板：
+```bash
+git config --local commit.template .gitmessage
+```
+
+---
+
+### 2.2 分支策略
+
+我们使用 **GitHub Flow** 的简化版本：
+
+#### 分支命名
+
+```
+<type>/<issue-number>-<short-description>
+
+示例：
+feat/123-infinite-canvas
+fix/456-crdt-conflict
+docs/789-api-documentation
+refactor/101-editor-selection
+```
+
+#### 主要分支
+
+- `main` - 主分支，始终保持可发布状态
+  - 受保护，不能直接推送
+  - 只能通过 PR 合并
+  - 所有 CI 检查必须通过
+
+- `develop` - 开发分支（可选，如果需要更稳定的 main）
+  - 日常开发的集成分支
+  - 定期合并到 main
+
+#### 工作流程
+
+```bash
+# 1. 从 main 创建新分支
+git checkout main
+git pull origin main
+git checkout -b feat/123-infinite-canvas
+
+# 2. 开发和提交
+git add .
+git commit -m "feat(canvas): implement zoom functionality"
+
+# 3. 推送到远程
+git push origin feat/123-infinite-canvas
+
+# 4. 创建 Pull Request
+
+# 5. 代码审查后合并
+
+# 6. 删除分支
+git branch -d feat/123-infinite-canvas
+git push origin --delete feat/123-infinite-canvas
+```
+
+---
+
+### 2.3 Pull Request 规范
+
+#### PR 标题
+
+遵循 Conventional Commits 格式：
+
+```
+feat(canvas): add infinite canvas support
+fix(crdt): resolve concurrent editing conflict
+docs: update contributing guidelines
+```
+
+#### PR 描述模板
+
+``````markdown
+## 描述
+
+简要描述这个 PR 做了什么，为什么要做。
+
+## 变更类型
+
+- [ ] 新功能 (feat)
+- [ ] Bug 修复 (fix)
+- [ ] 文档更新 (docs)
+- [ ] 代码重构 (refactor)
+- [ ] 性能优化 (perf)
+- [ ] 测试 (test)
+- [ ] 构建/CI (build/ci)
+- [ ] 其他 (chore)
+
+## 相关 Issue
+
+Fixes #123
+Closes #456
+
+## 变更内容
+
+- 实现了无限画布的缩放功能
+- 添加了平移手势支持
+- 优化了大画布的渲染性能
+
+## 测试
+
+- [ ] 单元测试通过
+- [ ] 集成测试通过
+- [ ] 手动测试通过
+- [ ] 性能测试通过（如适用）
+
+### 测试步骤
+
+1. 打开白板
+2. 使用鼠标滚轮缩放
+3. 拖拽画布平移
+4. 验证大量图形时的性能
+
+## 截图/演示
+
+（如果有 UI 变更，请添加截图或 GIF）
+
+## Checklist
+
+- [ ] 代码遵循项目风格指南
+- [ ] 已添加/更新相关文档
+- [ ] 已添加/更新测试
+- [ ] 所有 CI 检查通过
+- [ ] 已进行自我审查
+- [ ] 已更新 CHANGELOG（如需要）
+
+## 破坏性变更
+
+（如果有破坏性变更，请详细说明）
+
+## 其他说明
+
+（其他需要审查者注意的事项）
+``````
+
+---
+
+## 三、开源项目必备文档
+
+### 3.1 README.md
+
+```markdown
+# Mind-Fuse
+
+> 技术优先的开源白板项目 | 自研 CRDT + AI 原生
+
+[![CI](https://github.com/user/mind-fuse/workflows/CI/badge.svg)](https://github.com/user/mind-fuse/actions)
+[![codecov](https://codecov.io/gh/user/mind-fuse/branch/main/graph/badge.svg)](https://codecov.io/gh/user/mind-fuse)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Discord](https://img.shields.io/discord/xxx)](https://discord.gg/xxx)
+
+## ✨ 特性
+
+- 🎨 **无限画布** - 流畅的缩放和平移体验
+- 🤝 **实时协作** - 基于 CRDT 的无冲突协作
+- 🤖 **AI 增强** - 智能布局、内容生成、手绘识别
+- 🎯 **高性能** - Rust + WASM 驱动的核心算法
+- 🧩 **可扩展** - 插件系统和丰富的 SDK
+
+## 🚀 快速开始
+
+### 在线试用
+
+访问 [https://mind-fuse.com](https://mind-fuse.com) 直接使用
+
+### 本地开发
+
+```bash
+# 安装依赖
+pnpm install
+
+# 启动开发服务器
+pnpm dev
+
+# 访问 http://localhost:3000
+```
+
+详细安装指南请参考 [Getting Started](https://docs.mind-fuse.com/getting-started)
+
+## 📚 文档
+
+- [官方文档](https://docs.mind-fuse.com)
+- [API 文档](https://docs.mind-fuse.com/api)
+- [架构设计](./docs/ARCHITECTURE.md)
+- [贡献指南](./CONTRIBUTING.md)
+
+## 🏗️ 技术栈
+
+- **前端**: Next.js 14, React 18, PixiJS, Yjs
+- **后端**: Go (Gin), Rust (Axum)
+- **CRDT**: Yjs → 自研 (YATA算法)
+- **AI**: OpenAI, Anthropic, 本地模型
+- **数据库**: PostgreSQL, Redis
+
+## 🤝 参与贡献
+
+我们欢迎所有形式的贡献！
+
+- 提交 Bug 报告或功能请求
+- 改进文档
+- 提交 Pull Request
+
+详见 [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+## 📄 许可证
+
+[MIT License](LICENSE) © 2024 Mind-Fuse
+
+## 🙏 致谢
+
+- [tldraw](https://github.com/tldraw/tldraw) - 白板设计灵感
+- [Yjs](https://github.com/yjs/yjs) - CRDT 实现参考
+- [Excalidraw](https://github.com/excalidraw/excalidraw) - UI 设计参考
+
+## 📞 联系我们
+
+- Discord: [加入社区](https://discord.gg/xxx)
+- Twitter: [@mind_fuse](https://twitter.com/mind_fuse)
+- Email: hello@mind-fuse.com
+
+---
+
+**Star ⭐ 这个项目，关注最新进展！**
+```
+
+---
+
+### 3.2 CONTRIBUTING.md
+
+```markdown
+# 贡献指南
+
+感谢你对 Mind-Fuse 的兴趣！本指南将帮助你了解如何参与项目贡献。
+
+## 行为准则
+
+参与本项目，请遵守我们的 [行为准则](CODE_OF_CONDUCT.md)。
+
+## 如何贡献
+
+### 报告 Bug
+
+提交 Bug 前，请：
+
+1. 搜索 [已有 Issues](https://github.com/user/mind-fuse/issues) 确保不重复
+2. 使用最新版本重现问题
+3. 准备好重现步骤
+
+提交 Bug 时，请包含：
+
+- 详细的问题描述
+- 重现步骤
+- 期望行为和实际行为
+- 环境信息（浏览器、操作系统等）
+- 截图或视频（如适用）
+
+### 提出功能建议
+
+我们欢迎新功能建议！请：
+
+1. 搜索是否已有类似建议
+2. 清晰描述功能的用例和价值
+3. 提供示例或设计图（如适用）
+
+### 提交代码
+
+#### 开发环境设置
+
+```bash
+# 1. Fork 并克隆仓库
+git clone https://github.com/YOUR_USERNAME/mind-fuse.git
+cd mind-fuse
+
+# 2. 安装依赖
+pnpm install
+
+# 3. 配置开发环境
+./scripts/setup-dev.sh
+
+# 4. 启动开发服务器
+pnpm dev
+```
+
+#### 开发流程
+
+1. **创建分支**
+   ```bash
+   git checkout -b feat/123-your-feature
+   ```
+
+2. **编写代码**
+   - 遵循 [代码规范](#代码规范)
+   - 编写测试
+   - 更新文档
+
+3. **提交变更**
+   ```bash
+   git add .
+   git commit -m "feat(scope): description"
+   ```
+   - 遵循 [Commit 规范](./plan.md#git-提交规范)
+
+4. **推送并创建 PR**
+   ```bash
+   git push origin feat/123-your-feature
+   ```
+   - 在 GitHub 上创建 Pull Request
+   - 填写 PR 模板
+
+5. **代码审查**
+   - 响应审查意见
+   - 修改后推送更新
+
+6. **合并后**
+   - 删除分支
+   - 更新本地 main 分支
+
+#### 代码规范
+
+- **TypeScript**: 遵循 ESLint 配置
+- **Go**: 遵循 golangci-lint 配置
+- **Rust**: 遵循 Clippy 配置
+- **测试**: 覆盖率 > 80%
+- **文档**: 所有公共 API 必须有文档注释
+
+详见 [plan.md](./plan.md)
+
+#### 测试
+
+```bash
+# 运行所有测试
+pnpm test
+
+# 运行特定测试
+pnpm test packages/canvas-engine
+
+# 运行 Go 测试
+cd apps/api-go && go test ./...
+
+# 运行 Rust 测试
+cargo test --workspace
+```
+
+#### 性能测试
+
+```bash
+# 前端性能
+pnpm test:perf
+
+# Rust 基准测试
+cargo bench
+```
+
+## 项目结构
+
+```
+mind-fuse/
+├── apps/          # 应用
+│   ├── web/       # Next.js 前端
+│   ├── api-go/    # Go 后端
+│   └── docs/      # 文档站
+├── packages/      # TypeScript 包
+├── crates/        # Rust 包
+├── docs/          # 项目文档
+└── scripts/       # 工具脚本
+```
+
+详见 [ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+
+## 发布流程
+
+（维护者专用）
+
+1. 更新版本号
+2. 更新 CHANGELOG
+3. 创建 Git tag
+4. 推送 tag 触发 CI 发布
+
+## 获取帮助
+
+- [Discord 社区](https://discord.gg/xxx)
+- [GitHub Discussions](https://github.com/user/mind-fuse/discussions)
+- Email: dev@mind-fuse.com
+
+## 致谢
+
+所有贡献者都会在 [CONTRIBUTORS.md](./CONTRIBUTORS.md) 中列出。
+
+感谢你的贡献！🎉
+```
+
+---
+
+### 3.3 CODE_OF_CONDUCT.md
+
+```markdown
+# 贡献者行为准则
+
+## 我们的承诺
+
+为了营造一个开放和友好的环境，我们作为贡献者和维护者承诺：无论年龄、体型、残疾、种族、性别认同和表达、经验水平、教育程度、社会经济地位、国籍、个人外貌、种族、宗教或性取向如何，参与我们项目和社区的每个人都将获得无骚扰的体验。
+
+## 我们的标准
+
+有助于创造积极环境的行为包括：
+
+- 使用友好和包容的语言
+- 尊重不同的观点和经历
+- 优雅地接受建设性批评
+- 关注对社区最有利的事情
+- 对其他社区成员表示同理心
+
+不可接受的行为包括：
+
+- 使用性化的语言或图像，以及不受欢迎的性关注或挑逗
+- 挑衅、侮辱/贬损性评论，以及人身或政治攻击
+- 公开或私下骚扰
+- 未经明确许可，发布他人的私人信息（如物理地址或电子邮件地址）
+- 在专业环境中可能被合理认为不适当的其他行为
+
+## 我们的责任
+
+项目维护者有责任澄清可接受行为的标准，并对任何不可接受的行为采取适当和公平的纠正措施。
+
+项目维护者有权利和责任删除、编辑或拒绝与本行为准则不符的评论、提交、代码、wiki 编辑、问题和其他贡献，或暂时或永久禁止任何他们认为有不适当、威胁、冒犯或有害行为的贡献者。
+
+## 范围
+
+本行为准则适用于项目空间和公共空间，当个人代表项目或其社区时。代表项目或社区的示例包括使用官方项目电子邮件地址、通过官方社交媒体账户发布信息，或在在线或离线活动中担任指定代表。
+
+## 执行
+
+可以通过 conduct@mind-fuse.com 联系项目团队来报告滥用、骚扰或其他不可接受的行为。所有投诉都将被审查和调查，并将做出被认为必要和适当的回应。项目团队有义务对事件报告者保密。
+
+不遵守或不执行本行为准则的项目维护者可能会面临项目领导层决定的临时或永久后果。
+
+## 归属
+
+本行为准则改编自 [Contributor Covenant](https://www.contributor-covenant.org) 版本 2.1，
+可在 https://www.contributor-covenant.org/version/2/1/code_of_conduct.html 查看。
+```
+
+---
+
+### 3.4 SECURITY.md
+
+```markdown
+# 安全政策
+
+## 报告安全漏洞
+
+Mind-Fuse 团队认真对待所有安全漏洞。感谢你帮助我们改进项目的安全性。
+
+### 如何报告
+
+**请不要**通过公开 GitHub issues 报告安全漏洞。
+
+请发送电子邮件至 security@mind-fuse.com，包含：
+
+- 漏洞描述
+- 重现步骤
+- 潜在影响
+- 建议的修复方案（如有）
+
+我们将在 48 小时内确认收到你的报告，并在 7 天内提供详细响应。
+
+### 披露政策
+
+- 我们会调查和验证报告
+- 修复漏洞并发布补丁
+- 在修复发布后，公开披露漏洞详情
+- 感谢报告者（如同意）
+
+### 支持的版本
+
+| 版本 | 支持状态 |
+| ---- | -------- |
+| 1.x  | ✅ 支持  |
+| < 1.0 | ❌ 不支持 |
+
+### 安全更新
+
+安全更新将通过以下渠道发布：
+
+- GitHub Security Advisories
+- 项目 Changelog
+- Discord 社区公告
+- 邮件列表（订阅：security-announce@mind-fuse.com）
+
+## 安全最佳实践
+
+### 对于用户
+
+- 始终使用最新版本
+- 定期更新依赖
+- 使用强密码和 2FA
+- 不要在公共场所分享敏感数据
+
+### 对于开发者
+
+- 遵循安全编码规范
+- 定期运行安全扫描
+- 及时更新依赖
+- 代码审查时关注安全问题
+
+## 依赖安全
+
+我们使用以下工具监控依赖安全：
+
+- Dependabot (GitHub)
+- npm audit / pnpm audit
+- cargo audit
+
+## 致谢
+
+我们感谢以下安全研究人员的贡献：
+
+（名单将在此处更新）
+```
+
+---
+
+### 3.5 CHANGELOG.md
+
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- TBD
+
+### Changed
+- TBD
+
+### Deprecated
+- TBD
+
+### Removed
+- TBD
+
+### Fixed
+- TBD
+
+### Security
+- TBD
+
+## [1.0.0] - 2024-12-01
+
+### Added
+- Initial release
+- Infinite canvas with zoom and pan
+- Real-time collaboration using Yjs
+- AI-powered layout algorithms
+- Basic shape tools (rectangle, circle, line, text)
+- User authentication and workspaces
+
+### Changed
+- N/A
+
+### Security
+- N/A
+
+## [0.1.0] - 2024-10-15
+
+### Added
+- Project initialization
+- Basic canvas rendering
+- Simple shape drawing
+
+---
+
+[Unreleased]: https://github.com/user/mind-fuse/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/user/mind-fuse/compare/v0.1.0...v1.0.0
+[0.1.0]: https://github.com/user/mind-fuse/releases/tag/v0.1.0
+```
+
+---
+
+### 3.6 LICENSE
+
+```
+MIT License
+
+Copyright (c) 2024 Mind-Fuse Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## 四、CI/CD 最佳实践
+
+### 4.1 GitHub Actions 配置
+
+#### CI 工作流
+
+```yaml
+# .github/workflows/ci.yml
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint TypeScript
+        run: pnpm lint
+
+      - name: Lint Go
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          working-directory: apps/api-go
+
+      - name: Lint Rust
+        run: |
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          cargo fmt --all -- --check
+
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test --coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/coverage-final.json
+
+  test-go:
+    name: Test Go
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+          cache-dependency-path: apps/api-go/go.sum
+
+      - name: Run tests
+        working-directory: apps/api-go
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./apps/api-go/coverage.out
+
+  test-rust:
+    name: Test Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo test --workspace --all-features
+
+      - name: Run doc tests
+        run: cargo test --doc --workspace
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test-frontend, test-go, test-rust]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build WASM
+        run: |
+          cd crates/ai-layout
+          wasm-pack build --target web
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Build Go
+        working-directory: apps/api-go
+        run: go build -o bin/server cmd/server/main.go
+
+      - name: Build Rust
+        run: cargo build --release --workspace
+```
+
+#### Benchmark 工作流
+
+```yaml
+# .github/workflows/benchmark.yml
+
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run benchmarks
+        run: cargo bench --workspace
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: target/criterion/*/new/estimates.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+```
+
+#### Release 工作流
+
+```yaml
+# .github/workflows/release.yml
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Changelog
+        run: |
+          # 使用 conventional-changelog 生成
+          npx conventional-changelog-cli -p angular -i CHANGELOG.md -s
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body_path: ./CHANGELOG.md
+          draft: false
+          prerelease: false
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish packages
+        run: pnpm publish -r
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish crates
+        run: cargo publish --all
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+```
+
+---
+
+### 4.2 代码审查规范
+
+#### 审查清单
+
+**功能性**
+- [ ] 代码是否实现了预期功能？
+- [ ] 是否有边界情况处理？
+- [ ] 错误处理是否完善？
+
+**代码质量**
+- [ ] 代码是否遵循项目风格指南？
+- [ ] 命名是否清晰明确？
+- [ ] 是否有重复代码？
+- [ ] 复杂度是否过高？（函数是否过长？）
+
+**测试**
+- [ ] 是否有充足的测试？
+- [ ] 测试是否覆盖了边界情况？
+- [ ] 是否有集成测试？
+
+**性能**
+- [ ] 是否有性能问题？
+- [ ] 是否有不必要的计算或内存分配？
+- [ ] 对于关键路径，是否有性能测试？
+
+**安全**
+- [ ] 是否有安全漏洞？
+- [ ] 输入是否经过验证？
+- [ ] 是否正确处理了敏感数据？
+
+**文档**
+- [ ] 是否有足够的代码注释？
+- [ ] API 是否有文档？
+- [ ] README 是否需要更新？
+
+**向后兼容**
+- [ ] 是否有破坏性变更？
+- [ ] 是否需要迁移指南？
+
+#### 审查技巧
+
+**作为审查者**
+1. **理解上下文** - 先阅读 PR 描述和相关 issue
+2. **整体浏览** - 先整体理解变更，再深入细节
+3. **建设性反馈** - 提出具体建议，而不仅仅指出问题
+4. **区分优先级** - 明确哪些是必须修改，哪些是建议
+5. **及时审查** - 不要让 PR 等待太久
+
+**作为提交者**
+1. **小而精的 PR** - 避免过大的 PR（< 500 行变更）
+2. **清晰的描述** - 说明"为什么"而不仅仅是"做了什么"
+3. **自我审查** - 提交前先自己审查一遍
+4. **响应及时** - 及时响应审查意见
+5. **保持讨论友好** - 尊重不同意见
+
+#### 审查评论示例
+
+```markdown
+# ✅ 好的评论
+
+## 明确且建设性
+建议使用 `Array.find()` 代替循环，这样更简洁：
+\`\`\`typescript
+const user = users.find(u => u.id === id);
+\`\`\`
+
+## 解释原因
+这里应该添加错误处理，因为网络请求可能失败：
+\`\`\`typescript
+try {
+  const data = await fetchData();
+} catch (error) {
+  logger.error('Failed to fetch data', error);
+  // 回退逻辑
+}
+\`\`\`
+
+## 提供上下文
+根据我们的性能测试，这里使用 `Map` 会比 `Object` 快 2 倍。
+参考：docs/performance.md#map-vs-object
+
+# ❌ 不好的评论
+
+## 过于简短
+"这样不行"
+
+## 没有解释
+"改成用 Map"
+
+## 过于主观
+"我不喜欢这种写法"
+
+## 命令式语气
+"必须改成这样"
+```
+
+---
+
+## 五、总结
+
+### 规范的价值
+
+1. **提升代码质量**
+   - 可读性更好
+   - bug 更少
+   - 维护成本更低
+
+2. **提高协作效率**
+   - 减少沟通成本
+   - 降低代码审查时间
+   - 新人上手更快
+
+3. **增强项目可持续性**
+   - 完善的文档
+   - 清晰的历史
+   - 活跃的社区
+
+4. **学习和成长**
+   - 最佳实践的示范
+   - 持续改进的基础
+   - 职业发展的资产
+
+### 核心原则
+
+- ✅ **一致性优于个人偏好**
+- ✅ **清晰优于简洁**
+- ✅ **显式优于隐式**
+- ✅ **可读性优于性能**（在不必要优化的情况下）
+- ✅ **文档和测试是代码的一部分**
+
+### 持续改进
+
+规范不是一成不变的，我们会：
+
+- 定期审查和更新规范
+- 采纳社区的反馈
+- 跟进最新的最佳实践
+- 在实践中不断优化
+
+---
+
+**记住**：规范是为了帮助我们写出更好的代码，而不是束缚。当规范与实际需求冲突时，优先解决问题，然后讨论是否需要调整规范。

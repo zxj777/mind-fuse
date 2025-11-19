@@ -1,7 +1,7 @@
 {
-  "name": "@mind-fuse/shared-types",
+  "name": "@mind-fuse/utils",
   "version": "0.1.0",
-  "description": "Shared TypeScript type definitions for Mind-Fuse",
+  "description": "Shared utils definitions for Mind-Fuse",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

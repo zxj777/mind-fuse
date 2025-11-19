@@ -157,7 +157,7 @@ mind-fuse/
 │   │   │   └── types.ts
 │   │   └── package.json
 │   │
-│   ├── crdt-client/            # CRDT 客户端抽象层 ⭐ 关键模块
+│   ├── collaboration/            # CRDT 客户端抽象层 ⭐ 关键模块
 │   │   ├── src/
 │   │   │   ├── index.ts
 │   │   │   ├── types.ts        # 统一接口定义
@@ -172,24 +172,18 @@ mind-fuse/
 │   │   ├── package.json
 │   │   └── README.md           # 详细说明如何切换实现
 │   │
-│   ├── shapes/                 # 图形库
-│   │   ├── basic/              # 基础图形
-│   │   │   ├── src/
-│   │   │   │   ├── rectangle.ts
-│   │   │   │   ├── circle.ts
-│   │   │   │   ├── line.ts
-│   │   │   │   └── text.ts
-│   │   │   └── package.json
-│   │   ├── flowchart/          # 流程图专用图形
-│   │   │   ├── src/
-│   │   │   │   ├── process.ts
-│   │   │   │   ├── decision.ts
-│   │   │   │   └── connector.ts
-│   │   │   └── package.json
-│   │   └── mindmap/            # 思维导图
-│   │       └── src/
-│   │           ├── node.ts
-│   │           └── branch.ts
+│   ├── primitives/             # 基础图形库（Phase 1）
+│   │   ├── src/
+│   │   │   ├── rectangle.ts
+│   │   │   ├── circle.ts
+│   │   │   ├── line.ts
+│   │   │   └── text.ts
+│   │   ├── package.json
+│   │   └── README.md
+│   │
+│   │   # Phase 2+ 独立包（依赖 primitives）
+│   │   # ├── flowchart/       # 流程图包
+│   │   # └── mindmap/         # 思维导图包
 │   │
 │   ├── ui-kit/                 # UI 组件库
 │   │   ├── src/
@@ -382,29 +376,33 @@ mind-fuse/
 
 | 模块 | 技术选型 | 理由 |
 |------|---------|------|
-| **框架** | Next.js 14+ (App Router) | SSR、性能优化、生态成熟 |
+| **框架** | Next.js 15 (App Router) | SSR、Turbopack、性能优化、生态成熟 |
 | **UI 库** | React 18 | 生态最好、开发效率高 |
-| **渲染引擎** | PixiJS (WebGL) | 高性能、功能丰富、适合白板场景 |
+| **渲染引擎** | PixiJS v8 (WebGL + WebGPU) | 高性能、已支持 WebGPU、适合白板场景 |
+| **渲染引擎（Phase 2+）** | wgpu (Rust) → WASM | 自研、完全控制 WebGPU、性能极致 |
 | **状态管理** | Zustand / Valtio | 轻量、现代、适合 CRDT 集成 |
 | **CRDT（Phase 1）** | Yjs | 成熟稳定、快速验证产品 |
 | **CRDT（Phase 2+）** | 自研（Rust WASM） | 学习目标、完全控制、性能优化 |
-| **样式** | Tailwind CSS | 开发效率、主题化、响应式 |
-| **组件库** | shadcn/ui | 可定制、无锁定、质量高 |
+| **样式** | vanilla-extract | 类型安全、零运行时、主题化 |
+| **组件库（白板）** | Radix UI | 无样式、完全自定义、可访问性好 |
+| **组件库（其他页面）** | shadcn/ui (基于 Radix) | 快速开发、可定制、有现成模板 |
 | **类型安全** | TypeScript 5+ | 必选 |
-| **构建工具** | Turbo / Nx | Monorepo 管理 |
-| **测试** | Vitest + Testing Library | 快速、现代 |
+| **构建工具** | pnpm + Vite | 简单够用、HMR 快、开发体验好 |
+| **测试（单元）** | Vitest + Testing Library | 快速、现代 |
+| **测试（E2E）** | Playwright | 跨浏览器、截图对比、录制操作 |
 
 ### 后端技术栈（Go）
 
 | 模块 | 技术选型 | 理由 |
 |------|---------|------|
-| **框架** | Gin / Fiber | 高性能、简单易用 |
-| **WebSocket** | gorilla/websocket | 稳定、兼容 y-websocket |
-| **数据库** | PostgreSQL | 关系型、JSONB 支持 |
-| **缓存** | Redis | 性能、持久化 |
-| **ORM** | GORM / sqlc | GORM 开发快，sqlc 类型安全 |
+| **框架** | Huma v2 | OpenAPI 原生、自动生成文档和 TS 类型、现代化 |
+| **WebSocket** | nhooyr.io/websocket | 比 Gorilla 更现代、兼容 y-websocket |
+| **数据库** | PostgreSQL + pgvector | 关系型、JSONB、向量搜索（AI） |
+| **数据库客户端** | sqlc | 代码生成、类型安全、零运行时、无 ORM 魔法 |
+| **缓存** | Dragonfly | Redis 兼容、性能 25x、Rust 实现 |
 | **配置** | Viper | 灵活的配置管理 |
-| **日志** | Zap | 高性能结构化日志 |
+| **日志** | slog (标准库) | Go 1.21+ 原生、结构化日志 |
+| **验证** | go-playground/validator | 强大的验证库 |
 | **gRPC** | google.golang.org/grpc | 调用 Rust 服务 |
 | **测试** | testify | 断言、Mock |
 
@@ -412,10 +410,12 @@ mind-fuse/
 
 | 模块 | 技术选型 | 理由 |
 |------|---------|------|
-| **框架** | Axum | 现代、类型安全、性能好 |
+| **框架** | Axum（或 Loco.rs） | Axum: 现代、类型安全；Loco: Rails 风格、开发效率高 |
+| **数据库客户端** | SeaORM 或 sqlx | SeaORM: 异步 ORM；sqlx: 编译时 SQL 检查 |
 | **gRPC** | tonic | 纯 Rust、异步友好 |
 | **序列化** | serde | 标准、高效 |
 | **WASM** | wasm-bindgen | 标准、生态好 |
+| **WebGPU** | wgpu | 原生 WebGPU、可编译到 WASM |
 | **测试** | proptest | 属性测试、模糊测试 |
 | **性能** | criterion | 基准测试 |
 
@@ -426,7 +426,140 @@ mind-fuse/
 | **智能布局** | Rust WASM (D3.js 算法) | 自研算法 + LLM 优化 |
 | **内容生成** | OpenAI API | 多模型（OpenAI/Claude/Ollama） |
 | **手绘识别** | - | OpenAI Vision / 自训练模型 |
-| **语义理解** | - | RAG (Pinecone/Weaviate + LLM) |
+| **语义理解** | - | RAG (Qdrant + LLM) |
+| **向量数据库** | - | Qdrant (Rust 实现、高性能) |
+
+---
+
+## 技术选型详解（激进方案）
+
+### 为什么选择这些技术？
+
+本项目作为**技术学习项目**，我们倾向于选择**激进但有品味**的技术，而不是最成熟稳定的方案。以下是核心选型理由：
+
+#### 前端技术栈
+
+**1. PixiJS v8 → wgpu (Phase 2)**
+- **Phase 1**: PixiJS v8 已支持 WebGPU 作为可选后端，浏览器兼容性好
+- **Phase 2**: 自研 wgpu (Rust) → WASM 渲染引擎
+  - 学习 WebGPU 底层 API
+  - Rust 代码可复用（服务端渲染、缩略图生成）
+  - 完全控制渲染管线
+  - 理由：tldraw 用 Canvas2D 都能做到 60fps，说明算法比 API 更重要，值得深入学习
+
+**2. vanilla-extract**
+- 类型安全的 CSS-in-JS
+- 零运行时开销（编译时生成 CSS）
+- 完美支持主题系统
+- 比 Tailwind 更适合复杂组件样式
+- 可选：Tailwind 用于快速原型和布局
+
+**3. Radix UI + shadcn/ui**
+- **白板部分**: Radix UI（无样式，完全自定义）
+- **登录/后台**: shadcn/ui（基于 Radix，快速开发）
+- 统一的无障碍支持
+- 代码在你项目里，可随意修改
+
+**4. pnpm + Vite（不用 Turbo）**
+- Vite 的 HMR 速度无敌
+- pnpm workspace 对中小型 monorepo 够用
+- Next.js 自带 Turbopack，不需要额外构建工具
+- Turbo 留到 Phase 2（包数量 >10 时再考虑）
+
+**5. Playwright（E2E 测试）**
+- 白板项目的协作、撤销/重做等复杂交互必须 E2E 测试
+- 可以录制操作（`playwright codegen`）
+- 截图对比（测试 canvas 渲染结果）
+- 并行执行，性能好
+
+#### Go 后端技术栈
+
+**1. Huma v2（替代 Gin/Fiber）**
+```go
+// 自动生成 OpenAPI、TS 类型、验证
+func AddShape(ctx context.Context, input *struct {
+    Body struct {
+        ShapeType string `json:"shapeType" enum:"rect,circle"`
+        X         int    `json:"x" minimum:"0"`
+        Y         int    `json:"y" minimum:"0"`
+    }
+}) (*struct{ Body Shape }, error) {
+    // 自动验证、生成文档
+}
+```
+- OpenAPI 原生支持
+- 自动生成 TypeScript 类型定义
+- 类型安全的 API
+- 现代化设计（Go 1.21+ generics）
+
+**2. sqlc（替代 GORM）**
+```sql
+-- queries.sql
+-- name: GetUser :one
+SELECT * FROM users WHERE id = $1;
+```
+自动生成：
+```go
+func (q *Queries) GetUser(ctx context.Context, id string) (User, error)
+```
+- 编译时类型检查
+- 零运行时开销（无反射）
+- 直接写 SQL，无 ORM 魔法
+- 性能接近手写代码
+
+**3. Dragonfly（替代 Redis）**
+- Redis 协议兼容（无需改代码）
+- 性能是 Redis 的 25 倍（Rust 实现）
+- 内存使用更少
+- 激进但社区活跃
+
+**4. slog（替代 Zap）**
+- Go 1.21+ 标准库
+- 结构化日志
+- 性能优秀
+- 无第三方依赖
+
+**5. nhooyr.io/websocket（替代 Gorilla）**
+- 更现代的 API
+- 更好的性能
+- 仍然兼容 Yjs 的 y-websocket 协议
+
+#### Rust 后端技术栈
+
+**1. Axum（推荐）或 Loco.rs（激进）**
+- **Axum**: 成熟稳定，Tokio 团队维护
+- **Loco.rs**: 2024 新框架，Rails 风格，开发效率高
+```rust
+// Loco.rs 示例
+#[async_trait]
+impl Controller for ShapeController {
+    async fn create(&self, req: Request) -> Result<Response> {
+        // 类似 Rails 的开发体验
+    }
+}
+```
+
+**2. sqlx（推荐）或 SeaORM**
+- **sqlx**: 编译时 SQL 检查，轻量
+- **SeaORM**: 异步 ORM，功能丰富
+
+**3. wgpu（渲染引擎）**
+- 原生 WebGPU 实现
+- 可编译到 WASM（前端复用）
+- 可用于服务端渲染（生成缩略图）
+
+#### AI 基础设施
+
+**1. Qdrant（向量数据库）**
+- Rust 实现，性能极致
+- 支持过滤、混合搜索
+- 完善的 SDK（Go、Rust、TS）
+- 比 Pinecone/Weaviate 更适合自托管
+
+**2. pgvector（PostgreSQL 扩展）**
+- 简单场景直接用 pgvector
+- 省一个服务
+- 性能够用（<100 万向量）
 
 ---
 
@@ -482,7 +615,7 @@ apps/crdt-server/        ✅ Rust 优势：内存安全、性能极致
 #### 接口定义
 
 ```typescript
-// packages/crdt-client/src/types.ts
+// packages/collaboration/src/types.ts
 
 /**
  * CRDT 适配器统一接口
@@ -593,7 +726,7 @@ export interface UserState {
 #### Yjs 适配器实现（Phase 1）
 
 ```typescript
-// packages/crdt-client/src/adapter/yjs.ts
+// packages/collaboration/src/adapter/yjs.ts
 
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
@@ -698,7 +831,7 @@ export class YjsAdapter implements CRDTAdapter {
 #### 自研 WASM 适配器（Phase 2+）
 
 ```typescript
-// packages/crdt-client/src/adapter/wasm.ts
+// packages/collaboration/src/adapter/wasm.ts
 
 import { WasmDocument } from '@mind-fuse/crdt-wasm';
 import { CRDTAdapter, Position, Range, Content, Update, UserState } from '../types';
@@ -811,7 +944,7 @@ export class WasmAdapter implements CRDTAdapter {
 #### 工厂函数（统一入口）
 
 ```typescript
-// packages/crdt-client/src/index.ts
+// packages/collaboration/src/index.ts
 
 import { YjsAdapter } from './adapter/yjs';
 import { WasmAdapter } from './adapter/wasm';
@@ -858,7 +991,7 @@ export * from './types';
 ```typescript
 // apps/web/src/stores/whiteboard.ts
 
-import { createCRDTClient } from '@mind-fuse/crdt-client';
+import { createCRDTClient } from '@mind-fuse/collaboration';
 import { create } from 'zustand';
 
 interface WhiteboardStore {
@@ -1430,41 +1563,52 @@ export async function autoArrangeShapes(shapes: Shape[]) {
 快速验证产品，建立技术基础
 
 #### 技术栈
-- 前端：Next.js + Yjs + PixiJS
-- 后端：Go (REST + y-websocket)
-- AI：OpenAI API + Rust WASM 布局
+- **前端**: Next.js 15 + Yjs + PixiJS v8 + vanilla-extract + Radix/shadcn
+- **后端**: Go (Huma v2 + sqlc) + nhooyr.io/websocket
+- **缓存**: Dragonfly
+- **AI**: OpenAI API + Rust WASM 布局
+- **测试**: Vitest + Playwright
 
 #### 里程碑
 
 **Week 1-2: 项目初始化**
-- [ ] 创建 monorepo 结构
-- [ ] 配置开发环境
-- [ ] 搭建 CI/CD
+- [ ] 创建 pnpm monorepo 结构
+- [ ] 配置开发环境（Node.js、Go、Rust、Docker）
+- [ ] 配置 vanilla-extract + Vite
+- [ ] 搭建 CI/CD（GitHub Actions）
+- [ ] 配置 Playwright E2E 测试
 
 **Week 3-4: 渲染引擎**
-- [ ] PixiJS 集成
-- [ ] 无限画布
-- [ ] 基础图形渲染
+- [ ] PixiJS v8 集成（启用 WebGPU）
+- [ ] 无限画布（viewport、zoom、pan）
+- [ ] 基础图形渲染（矩形、圆形、线条）
+- [ ] 编写 E2E 测试（canvas 截图对比）
 
 **Week 5-6: 编辑器核心**
-- [ ] 选择系统
-- [ ] 拖拽变换
-- [ ] 撤销/重做
+- [ ] 选择系统（单选、框选）
+- [ ] 拖拽变换（移动、缩放、旋转）
+- [ ] 撤销/重做（基于 Yjs）
+- [ ] E2E 测试（拖拽、选择）
 
 **Week 7-8: 实时协作**
-- [ ] Yjs 集成
-- [ ] WebSocket 服务（Go）
-- [ ] 多人光标/选择
+- [ ] Yjs 集成（通过 CRDT 抽象层）
+- [ ] Go WebSocket 服务（nhooyr.io/websocket）
+- [ ] 多人光标/选择（Awareness）
+- [ ] Dragonfly 缓存集成
+- [ ] E2E 测试（多客户端协作）
 
 **Week 9-10: AI 功能**
-- [ ] Rust WASM 布局算法
-- [ ] OpenAI 内容生成
-- [ ] 智能对齐
+- [ ] Rust WASM 布局算法（力导向图）
+- [ ] OpenAI API 集成（内容生成）
+- [ ] 智能对齐和分布
+- [ ] 单元测试（Rust benchmarks）
 
-**Week 11-12: Polish 和上线**
-- [ ] UI 美化
+**Week 11-12: UI 和上线**
+- [ ] Radix UI 组件（白板工具栏）
+- [ ] shadcn/ui（登录、设置页面）
+- [ ] vanilla-extract 主题系统
 - [ ] 性能优化
-- [ ] 部署
+- [ ] 部署（Vercel + Fly.io）
 
 #### 交付物
 - ✅ 可用的白板产品
@@ -1489,6 +1633,7 @@ export async function autoArrangeShapes(shapes: Shape[]) {
 
 **Month 4: 重构为 SDK**
 - [ ] packages/ 结构重组
+- [ ] 新增领域包：flowchart、mindmap（依赖 primitives）
 - [ ] API 文档生成
 - [ ] 示例项目
 
@@ -1539,9 +1684,10 @@ export async function autoArrangeShapes(shapes: Shape[]) {
 - [ ] 语义理解（RAG）
 - [ ] 多模型支持
 
-**Month 14-15: 性能优化**
-- [ ] 自研渲染引擎（可选）
-- [ ] 大规模性能测试
+**Month 14-15: 性能优化 + WebGPU 渲染引擎**
+- [ ] wgpu (Rust) → WASM 自研渲染引擎
+- [ ] WebGPU 渲染管线优化
+- [ ] 大规模性能测试（10k+ shapes）
 - [ ] 优化关键路径
 
 **Month 16+: 生态建设**
@@ -1611,7 +1757,8 @@ export async function autoArrangeShapes(shapes: Shape[]) {
 - **wasm-pack**: 最新版
 - **Docker**: 用于本地开发环境
 - **PostgreSQL**: v15+
-- **Redis**: v7+
+- **Dragonfly**: 最新版（或 Redis v7+ 兼容）
+- **Playwright**: 最新版（E2E 测试）
 
 ### 初始化脚本
 
@@ -1732,55 +1879,97 @@ tonic = "0.10"
 wasm-bindgen = "0.2"
 ```
 
-### turbo.json
+### package.json (根目录脚本)
 
 ```json
 {
-  "$schema": "https://turbo.build/schema.json",
-  "pipeline": {
-    "build": {
-      "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**", "target/**"]
-    },
-    "dev": {
-      "cache": false,
-      "persistent": true
-    },
-    "test": {
-      "dependsOn": ["^build"]
-    },
-    "lint": {},
-    "type-check": {}
+  "name": "mind-fuse",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:e2e": "playwright test",
+    "lint": "pnpm -r lint",
+    "type-check": "pnpm -r type-check",
+    "clean": "pnpm -r clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.0"
   }
 }
+```
+
+### vite.config.ts (共享配置)
+
+```typescript
+// packages/vite-config/vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    vanillaExtractPlugin(),
+  ],
+  optimizeDeps: {
+    exclude: ['@mind-fuse/crdt-wasm', '@mind-fuse/ai-layout-wasm'],
+  },
+});
 ```
 
 ---
 
 ## 总结
 
+### 技术栈对比（保守 vs 激进）
+
+| 模块 | 保守方案 | 我们的选择（激进） | 理由 |
+|------|---------|------------------|------|
+| **Go 框架** | Gin/Fiber | Huma v2 | OpenAPI 原生、自动生成 TS 类型 |
+| **Go ORM** | GORM | sqlc | 类型安全、零运行时、无魔法 |
+| **缓存** | Redis | Dragonfly | 兼容 Redis、性能 25x |
+| **日志** | Zap | slog (标准库) | 无依赖、性能好 |
+| **WebSocket** | Gorilla | nhooyr.io/websocket | 更现代的 API |
+| **样式** | Tailwind | vanilla-extract + Tailwind | 类型安全、零运行时 |
+| **组件库** | Material-UI / Ant Design | Radix + shadcn/ui | 无样式、完全自定义 |
+| **构建工具** | Turborepo | pnpm + Vite | 简单够用、HMR 快 |
+| **E2E 测试** | 不做 | Playwright | 必须有（复杂交互） |
+| **渲染引擎** | Canvas2D / PixiJS | PixiJS v8 → wgpu (WASM) | 学习 WebGPU |
+| **向量数据库** | Pinecone | Qdrant | Rust 实现、自托管 |
+| **Rust 框架** | - | Axum / Loco.rs | Loco 更激进但高效 |
+
 ### 核心优势
 
 1. **技术深度 + 务实路线**
-   - Phase 1 用 Yjs 快速验证
-   - Phase 2+ 自研 CRDT 深入学习
-   - 抽象层保证平滑迁移
+   - Phase 1 用成熟技术快速验证（Yjs、PixiJS）
+   - Phase 2+ 自研核心模块深入学习（CRDT、渲染引擎）
+   - 抽象层保证平滑迁移（零应用代码改动）
 
-2. **多语言协同**
+2. **激进但有品味**
+   - 不盲目追求稳定，选择有良好社区的新技术
+   - Huma v2、sqlc、Dragonfly 等都有活跃社区
+   - 学习价值 > 生产稳定性（这是学习项目）
+
+3. **多语言协同**
    - Go 做业务逻辑（快速迭代）
    - Rust 做性能关键路径（极致性能）
    - TypeScript 做前端（生态成熟）
+   - 三者通过 gRPC、WASM 无缝协作
 
-3. **开源 + 学习**
-   - SDK 化设计
-   - 完整文档
-   - 技术博客输出
+4. **开源 + 学习**
+   - SDK 化设计（类似 tldraw）
+   - 完整文档和博客
+   - 代码即教程
 
-4. **AI 原生**
+5. **AI 原生**
    - 智能布局（Rust WASM）
    - 内容生成（LLM）
    - 手绘识别（Vision）
-   - 语义理解（RAG）
+   - 语义理解（RAG + Qdrant）
 
 ### 关键文档
 - [ARCHITECTURE.md](./docs/ARCHITECTURE.md) - 整体架构
@@ -1801,6 +1990,101 @@ wasm-bindgen = "0.2"
 **预计完整版完成**：+12 个月
 
 **记住**：这是一个学习项目，重点是**技术深度**和**知识积累**，而不仅仅是快速交付产品。
+
+---
+
+## 快速技术参考
+
+### 完整技术栈一览
+
+#### 前端
+```yaml
+框架: Next.js 15 (App Router + Turbopack)
+UI库: React 18
+渲染:
+  - Phase 1: PixiJS v8 (WebGL + WebGPU)
+  - Phase 2: wgpu (Rust) → WASM
+状态: Zustand / Valtio
+样式: vanilla-extract + Tailwind (可选)
+组件:
+  - 白板: Radix UI
+  - 其他: shadcn/ui
+CRDT:
+  - Phase 1: Yjs
+  - Phase 2: 自研 (Rust WASM)
+构建: pnpm + Vite
+测试:
+  - 单元: Vitest + Testing Library
+  - E2E: Playwright
+```
+
+#### 后端 (Go)
+```yaml
+框架: Huma v2
+数据库: PostgreSQL + pgvector
+客户端: sqlc
+缓存: Dragonfly
+WebSocket: nhooyr.io/websocket
+日志: slog (标准库)
+验证: go-playground/validator
+gRPC: google.golang.org/grpc
+测试: testify
+```
+
+#### 后端 (Rust)
+```yaml
+框架: Axum (或 Loco.rs)
+数据库: sqlx / SeaORM
+gRPC: tonic
+WASM: wasm-bindgen
+WebGPU: wgpu
+序列化: serde
+测试: proptest
+性能: criterion
+```
+
+#### AI & 数据
+```yaml
+向量数据库: Qdrant (Rust)
+向量扩展: pgvector (PostgreSQL)
+LLM: OpenAI API → 多模型
+布局算法: Rust WASM (力导向图)
+```
+
+#### 开发工具
+```yaml
+包管理: pnpm
+版本控制: Git + Conventional Commits
+CI/CD: GitHub Actions
+部署: Vercel (前端) + Fly.io (后端)
+监控: (待定)
+```
+
+### 关键命令
+
+```bash
+# 初始化开发环境
+./scripts/setup-dev.sh
+
+# 启动所有服务
+pnpm dev
+
+# 运行测试
+pnpm test          # 单元测试
+pnpm test:e2e      # E2E 测试
+
+# 构建
+pnpm build         # 构建所有包
+
+# 构建 WASM
+./scripts/build-wasm.sh
+
+# 生成 gRPC 代码
+./scripts/protoc-gen.sh
+
+# 运行 Benchmark
+./scripts/benchmark.sh
+```
 
 ---
 

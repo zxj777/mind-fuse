@@ -111,123 +111,58 @@ mind-fuse/
 │       ├── ai-layout/          # AI 布局示例
 │       └── custom-shapes/      # 自定义图形
 │
-├── packages/                   # TypeScript 包（前端 SDK）
-│   ├── canvas-engine/          # 渲染引擎
+├── packages/                   # TypeScript 包（白板核心 SDK）
+│   ├── mind-fuse/              # 白板 SDK 总入口（聚合下方所有核心包）
 │   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   ├── renderer/       # PixiJS 封装
-│   │   │   │   ├── pixi-renderer.ts
-│   │   │   │   └── viewport.ts # 无限画布
-│   │   │   ├── layers/         # 分层渲染
-│   │   │   ├── camera/         # 相机控制
-│   │   │   ├── performance/    # 性能优化
-│   │   │   │   ├── culling.ts  # 视锥剔除
-│   │   │   │   └── virtual.ts  # 虚拟化
-│   │   │   └── types.ts
-│   │   ├── package.json
-│   │   └── README.md
-│   │
-│   ├── editor-core/            # 编辑器核心逻辑
-│   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   ├── selection/      # 选择系统
-│   │   │   │   ├── select-tool.ts
-│   │   │   │   └── multi-select.ts
-│   │   │   ├── transform/      # 变换（拖拽、缩放、旋转）
-│   │   │   │   ├── drag.ts
-│   │   │   │   ├── resize.ts
-│   │   │   │   └── rotate.ts
-│   │   │   ├── gestures/       # 手势识别
-│   │   │   ├── tools/          # 工具集
-│   │   │   │   ├── pen.ts
-│   │   │   │   ├── shape.ts
-│   │   │   │   └── text.ts
-│   │   │   ├── history/        # 撤销/重做
-│   │   │   └── types.ts
+│   │   │   └── index.ts        # 对外暴露统一 API（React hooks + store + editor + collaboration）
 │   │   └── package.json
 │   │
-│   ├── state-manager/          # 状态管理
+│   ├── editor/                 # 编辑器核心（选择 / 变换 / 工具等）
 │   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   ├── store.ts        # Zustand/Valtio 封装
-│   │   │   ├── slices/         # 状态切片
-│   │   │   │   ├── canvas.ts
-│   │   │   │   ├── shapes.ts
-│   │   │   │   └── user.ts
-│   │   │   └── types.ts
+│   │   │   └── index.ts
 │   │   └── package.json
 │   │
-│   ├── collaboration/            # CRDT 客户端抽象层 ⭐ 关键模块
+│   ├── collaboration-core/     # 协作核心协议（CRDT 抽象、文档模型）
 │   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   ├── types.ts        # 统一接口定义
-│   │   │   ├── adapter/        # 适配器模式
-│   │   │   │   ├── base.ts     # 抽象基类
-│   │   │   │   ├── yjs.ts      # Yjs 实现（Phase 1）
-│   │   │   │   └── wasm.ts     # 自研 WASM 实现（Phase 2+）
-│   │   │   ├── sync/           # 同步管理
-│   │   │   │   ├── websocket.ts
-│   │   │   │   └── awareness.ts # 多人状态（光标、选择）
-│   │   │   └── utils/
-│   │   ├── package.json
-│   │   └── README.md           # 详细说明如何切换实现
-│   │
-│   ├── primitives/             # 基础图形库（Phase 1）
-│   │   ├── src/
-│   │   │   ├── rectangle.ts
-│   │   │   ├── circle.ts
-│   │   │   ├── line.ts
-│   │   │   └── text.ts
-│   │   ├── package.json
-│   │   └── README.md
-│   │
-│   │   # Phase 2+ 独立包（依赖 primitives）
-│   │   # ├── flowchart/       # 流程图包
-│   │   # └── mindmap/         # 思维导图包
-│   │
-│   ├── ui-kit/                 # UI 组件库
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   │   ├── toolbar/
-│   │   │   │   ├── panel/
-│   │   │   │   ├── inspector/  # 属性面板
-│   │   │   │   └── modal/
-│   │   │   └── styles/         # 样式系统
+│   │   │   └── index.ts
 │   │   └── package.json
 │   │
-│   ├── ai-sdk/                 # AI SDK
+│   ├── collaboration/          # 协作客户端（WebSocket、房间管理、Awareness）
 │   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   ├── client.ts       # 统一客户端
-│   │   │   ├── providers/      # 多模型支持
-│   │   │   │   ├── openai.ts
-│   │   │   │   ├── anthropic.ts
-│   │   │   │   └── ollama.ts   # 本地模型
-│   │   │   ├── layout/         # 布局相关
-│   │   │   │   ├── auto-align.ts
-│   │   │   │   └── wasm-bridge.ts # 调用 Rust WASM
-│   │   │   ├── generation/     # 内容生成
-│   │   │   │   ├── diagram.ts
-│   │   │   │   └── flowchart.ts
-│   │   │   ├── recognition/    # 识别
-│   │   │   │   └── sketch.ts
-│   │   │   └── semantic/       # 语义理解
-│   │   │       └── rag.ts
+│   │   │   └── index.ts
 │   │   └── package.json
 │   │
-│   ├── shared-types/           # 共享类型定义
+│   ├── store/                  # 状态管理封装（Zustand / Valtio 适配）
 │   │   ├── src/
-│   │   │   ├── shape.ts
-│   │   │   ├── document.ts
-│   │   │   ├── user.ts
-│   │   │   └── api.ts
+│   │   │   └── index.ts
 │   │   └── package.json
 │   │
-│   └── shared-utils/           # 共享工具函数
+│   ├── ai-sdk/                 # AI SDK（布局 / 生成 / 识别等能力）
+│   │   ├── src/
+│   │   │   └── index.ts
+│   │   └── package.json
+│   │
+│   ├── schema/                 # 协议 / Schema 定义（文档 / 事件 / 网络通信）
+│   │   ├── src/
+│   │   │   └── index.ts
+│   │   └── package.json
+│   │
+│   ├── types/                  # 共享 TypeScript 类型定义
+│   │   ├── src/
+│   │   │   └── index.ts
+│   │   └── package.json
+│   │
+│   ├── utils/                  # 共享工具函数（几何、颜色、数据结构等）
+│   │   ├── src/
+│   │   │   └── index.ts
+│   │   └── package.json
+│   │
+│   ├── assets/                 # 静态资源（图标、光标、预设模板等）
+│   │   └── package.json
+│   │
+│   └── validate/               # 校验工具（schema + 运行时校验）
 │       ├── src/
-│       │   ├── geometry/       # 几何计算
-│       │   ├── color/          # 颜色处理
-│       │   └── validation/     # 验证
+│       │   └── index.ts
 │       └── package.json
 │
 ├── crates/                     # Rust 工作空间
@@ -3558,7 +3493,7 @@ pnpm dev
 pnpm test
 
 # 运行特定测试
-pnpm test packages/canvas-engine
+pnpm test packages/mind-fuse
 
 # 运行 Go 测试
 cd apps/api-go && go test ./...

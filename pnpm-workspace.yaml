@@ -1,3 +1,36 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+catalog:
+  # 开发工具
+  typescript: ^5.3.0
+  prettier: ^3.1.0
+
+  # Linting
+  eslint: ^9.39.0
+  "@antfu/eslint-config": ^6.2.0
+  eslint-config-next: 16.0.3
+
+  # 构建工具
+  tsup: ^8.0.1
+
+  # 测试工具
+  "@playwright/test": ^1.40.0
+
+  # Git Hooks
+  husky: ^9.0.0
+  lint-staged: ^15.2.0
+
+  # React & Next.js
+  react: 19.2.0
+  react-dom: 19.2.0
+  next: 16.0.3
+
+  # React 类型定义
+  "@types/node": ^20
+  "@types/react": ^19
+  "@types/react-dom": ^19
+
+  # React Compiler
+  babel-plugin-react-compiler: 1.0.0

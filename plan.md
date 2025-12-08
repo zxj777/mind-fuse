@@ -6,7 +6,7 @@
 
 1. **技术深度**：自研 CRDT 算法，深入理解分布式协作原理
 2. **工程质量**：现代化的多语言架构（Go + Rust + TypeScript）
-3. **AI 增强**：智能布局和手绘识别等核心 AI 能力
+3. **AI 原生**：Agent 作为核心架构，不是后加的功能
 4. **开发者友好**：清晰的架构设计，完整的技术文档
 
 ---
@@ -21,12 +21,13 @@ Phase 1 (MVP, 3-4月)           Phase 2 (深度优化, 3-6月)
 CRDT:    Yjs (快速验证)    →   自研 CRDT (Rust)
 后端:    Go                →   Go + Rust (gRPC)
 前端:    PixiJS             →   PixiJS (优化)
-AI:      智能布局           →   + 手绘识别
+Agent:   内容生成           →   + 智能整理 + 手绘识别
 ```
 
 **关键设计原则**：
 - ✅ Phase 1 使用成熟技术快速验证，通过**抽象层**预留自研接口
 - ✅ Go 负责业务逻辑，Rust 负责性能关键路径（CRDT、算法）
+- ✅ **Agent 前置**：渲染引擎完成后立即开发 Agent，让 Agent 成为画布的第一个"用户"
 - ✅ 每个阶段都有明确的技术学习目标和可演示成果
 
 ---
@@ -66,13 +67,14 @@ AI:      智能布局           →   + 手绘识别
 | **gRPC** | tonic | 纯 Rust、异步友好 |
 | **测试** | proptest + criterion | 属性测试 + 性能基准 |
 
-### AI
+### AI / Agent
 
 | 能力 | Phase 1 | Phase 2 |
 |------|---------|---------|
+| **内容生成 Agent** | LLM (Claude/GPT-4) 文本→图表 | 多轮对话、流式生成 |
+| **智能整理 Agent** | - | 自动分组、布局优化 |
 | **智能布局** | Rust WASM (力导向图) | 优化 + 层次布局 |
 | **手绘识别** | - | OpenAI Vision API |
-| **其他能力** | 架构预留 | 按需扩展 |
 
 ---
 
@@ -117,6 +119,27 @@ mind-fuse/
 │   ├── types/                  # 共享类型定义
 │   ├── utils/                  # 工具函数
 │   ├── store/                  # 状态管理核心
+│   ├── canvas-operations/      # 画布操作 API ⭐ (Agent 和用户共用)
+│   │   ├── src/
+│   │   │   ├── operations.ts   # createElement, connect, layout...
+│   │   │   ├── element.ts      # 语义化元素定义
+│   │   │   └── index.ts
+│   │   └── package.json
+│   ├── agent-sdk/              # Agent 开发框架 ⭐
+│   │   ├── src/
+│   │   │   ├── core/
+│   │   │   │   ├── agent.ts          # Agent 基类
+│   │   │   │   ├── intent.ts         # 意图解析
+│   │   │   │   └── executor.ts       # 执行器
+│   │   │   ├── agents/
+│   │   │   │   ├── content-generator.ts   # 内容生成 Agent
+│   │   │   │   └── auto-organizer.ts      # 智能整理 Agent
+│   │   │   ├── llm/
+│   │   │   │   ├── provider.ts       # LLM 抽象
+│   │   │   │   ├── claude.ts
+│   │   │   │   └── openai.ts
+│   │   │   └── index.ts
+│   │   └── package.json
 │   ├── collaboration/          # 协同抽象层
 │   │   ├── src/
 │   │   │   ├── adapter/
@@ -130,7 +153,7 @@ mind-fuse/
 │   │   │   ├── tools/          # 工具系统
 │   │   │   └── renderer/       # 渲染模块
 │   │   └── package.json
-│   └── ai-sdk/                 # AI 功能接口
+│   └── ai-algorithms/          # AI 算法接口 (布局等)
 │       ├── src/
 │       │   ├── layout/         # 布局算法
 │       │   └── recognition/    # 识别功能
@@ -254,7 +277,223 @@ NEXT_PUBLIC_CRDT_TYPE=wasm
 
 ---
 
-### 2. AI 布局算法 (Rust WASM) ⭐
+### 2. Canvas Operations API ⭐
+
+**目标**：统一的画布操作接口，Agent 和用户都通过这个 API 操作画布。
+
+#### 语义化元素模型
+
+```typescript
+// packages/canvas-operations/src/element.ts
+
+export interface Element {
+  id: string;
+  type: ElementType;
+
+  // 几何信息（渲染用）
+  geometry: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation?: number;
+  };
+
+  // 样式信息
+  style: {
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    // ...
+  };
+
+  // 语义信息（Agent 需要）⭐
+  semantic: {
+    label?: string;              // "用户注册步骤"
+    category?: string;           // "process-step" | "decision" | "start" | "end"
+    description?: string;
+    relations?: Array<{
+      targetId: string;
+      type: 'next' | 'branch' | 'reference';
+    }>;
+    metadata?: Record<string, any>;
+  };
+
+  // 来源追踪
+  source: {
+    type: 'user' | 'agent';
+    agentId?: string;
+    generatedFrom?: string;      // 如果是 Agent 生成的，原始 prompt
+    timestamp: number;
+  };
+}
+```
+
+#### 操作接口
+
+```typescript
+// packages/canvas-operations/src/operations.ts
+
+export interface CanvasOperations {
+  // 基础 CRUD
+  createElement(type: ElementType, props: Partial<Element>): Element;
+  updateElement(id: string, updates: Partial<Element>): void;
+  deleteElement(id: string): void;
+  getElement(id: string): Element | null;
+  getAllElements(): Element[];
+
+  // 批量操作（Agent 常用）
+  batchCreate(elements: Array<Partial<Element>>): Element[];
+  batchUpdate(updates: Array<{ id: string; updates: Partial<Element> }>): void;
+  batchDelete(ids: string[]): void;
+
+  // 语义操作
+  connect(fromId: string, toId: string, type?: ConnectionType): Connection;
+  group(elementIds: string[], label?: string): Group;
+  ungroup(groupId: string): Element[];
+
+  // 布局操作
+  autoLayout(elementIds: string[], algorithm: LayoutAlgorithm): void;
+  align(elementIds: string[], alignment: Alignment): void;
+  distribute(elementIds: string[], direction: 'horizontal' | 'vertical'): void;
+
+  // 查询
+  findByLabel(label: string): Element[];
+  findByCategory(category: string): Element[];
+  findConnected(elementId: string): Element[];
+}
+```
+
+**设计原则**：
+- ✅ Agent 和用户使用相同的 API，保证一致性
+- ✅ 元素包含语义信息，Agent 可以"理解"画布内容
+- ✅ 批量操作优化，适合 Agent 一次性生成多个元素
+
+---
+
+### 3. Agent SDK ⭐
+
+**目标**：提供 Agent 开发框架，支持快速开发新的 Agent。
+
+#### Agent 基类
+
+```typescript
+// packages/agent-sdk/src/core/agent.ts
+
+export abstract class BaseAgent {
+  protected canvas: CanvasOperations;
+  protected llm: LLMProvider;
+
+  constructor(canvas: CanvasOperations, llm: LLMProvider) {
+    this.canvas = canvas;
+    this.llm = llm;
+  }
+
+  // 子类实现
+  abstract get name(): string;
+  abstract get description(): string;
+  abstract execute(input: AgentInput): Promise<AgentOutput>;
+
+  // 可选：流式执行
+  async *executeStream(input: AgentInput): AsyncIterable<AgentEvent> {
+    const result = await this.execute(input);
+    yield { type: 'complete', result };
+  }
+}
+```
+
+#### 内容生成 Agent
+
+```typescript
+// packages/agent-sdk/src/agents/content-generator.ts
+
+export class ContentGeneratorAgent extends BaseAgent {
+  name = 'content-generator';
+  description = '根据文本描述生成图表';
+
+  async execute(input: { prompt: string }): Promise<AgentOutput> {
+    // 1. 调用 LLM 解析用户意图
+    const structure = await this.llm.chat({
+      messages: [
+        { role: 'system', content: CONTENT_GENERATOR_SYSTEM_PROMPT },
+        { role: 'user', content: input.prompt }
+      ],
+      responseFormat: { type: 'json_object' }
+    });
+
+    // 2. 解析 LLM 返回的结构
+    const { nodes, connections } = JSON.parse(structure);
+
+    // 3. 批量创建元素
+    const elements = this.canvas.batchCreate(
+      nodes.map(node => ({
+        type: node.type,
+        geometry: node.position,
+        semantic: {
+          label: node.label,
+          category: node.category
+        },
+        source: {
+          type: 'agent',
+          agentId: this.name,
+          generatedFrom: input.prompt
+        }
+      }))
+    );
+
+    // 4. 创建连接
+    connections.forEach(conn => {
+      this.canvas.connect(
+        elements[conn.fromIndex].id,
+        elements[conn.toIndex].id,
+        conn.type
+      );
+    });
+
+    // 5. 自动布局
+    this.canvas.autoLayout(elements.map(e => e.id), 'force-directed');
+
+    return { elements, connections };
+  }
+}
+```
+
+#### LLM Provider 抽象
+
+```typescript
+// packages/agent-sdk/src/llm/provider.ts
+
+export interface LLMProvider {
+  chat(request: ChatRequest): Promise<string>;
+  chatStream(request: ChatRequest): AsyncIterable<string>;
+}
+
+// packages/agent-sdk/src/llm/claude.ts
+export class ClaudeProvider implements LLMProvider {
+  constructor(private apiKey: string) {}
+
+  async chat(request: ChatRequest): Promise<string> {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': this.apiKey,
+        'content-type': 'application/json',
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        messages: request.messages
+      })
+    });
+    // ...
+  }
+}
+```
+
+---
+
+### 4. AI 布局算法 (Rust WASM) ⭐
 
 #### 力导向图实现
 
@@ -329,7 +568,7 @@ export async function forceDirectedLayout(
 
 ---
 
-### 3. Go-Rust 集成 (Phase 2) ⭐
+### 5. Go-Rust 集成 (Phase 2) ⭐
 
 #### Protocol Buffers 定义
 
@@ -384,7 +623,7 @@ func (c *Client) ApplyUpdate(ctx context.Context, docID, update []byte) error {
 
 ---
 
-### 4. AI 手绘识别 (Phase 2) ⭐
+### 6. AI 手绘识别 (Phase 2) ⭐
 
 ```typescript
 // packages/ai-sdk/src/recognition/sketch.ts
@@ -420,61 +659,68 @@ export async function recognizeSketch(
 
 ---
 
-## AI 架构设计
+## AI / Agent 架构设计
 
 ### 整体架构
 
 ```
-┌─────────────────────────────────────────────┐
-│            AI 能力层（可扩展）                 │
-├─────────────────────────────────────────────┤
-│ 已实现：                                     │
-│  • 智能布局 (Rust WASM)                      │
-│  • 手绘识别 (OpenAI Vision)                  │
-├─────────────────────────────────────────────┤
-│ 架构预留（接口已设计，未实现）：               │
-│  • 内容生成 (GPT-4)                          │
-│  • 语义理解 (RAG + pgvector)                 │
-│  • 会议助手 (实时总结)                        │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                        用户界面                              │
+│   ┌─────────────────┐       ┌─────────────────────────┐     │
+│   │   手动编辑操作    │       │   Agent 命令面板 (/)    │     │
+│   └────────┬────────┘       └───────────┬─────────────┘     │
+│            │                            │                    │
+│            ▼                            ▼                    │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │            Canvas Operations API                     │   │
+│   │   createElement / connect / autoLayout / ...         │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                            │                                 │
+│            ┌───────────────┼───────────────┐                │
+│            ▼               ▼               ▼                │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│   │   渲染层     │  │   CRDT 层   │  │  Agent SDK  │        │
+│   │  (PixiJS)   │  │   (Yjs)     │  │             │        │
+│   └─────────────┘  └─────────────┘  └──────┬──────┘        │
+│                                            │                 │
+│                          ┌─────────────────┼─────────────┐  │
+│                          ▼                 ▼             ▼  │
+│                    ┌──────────┐    ┌──────────┐   ┌───────┐│
+│                    │ 内容生成  │    │ 智能整理  │   │ ...  ││
+│                    │  Agent   │    │  Agent   │   │      ││
+│                    └────┬─────┘    └────┬─────┘   └───────┘│
+│                         │               │                   │
+│                         ▼               ▼                   │
+│                    ┌─────────────────────────┐              │
+│                    │      LLM Provider       │              │
+│                    │  (Claude / OpenAI)      │              │
+│                    └─────────────────────────┘              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### AI SDK 接口设计
+### Agent 类型规划
+
+| Agent | Phase | 核心能力 | 技术实现 |
+|-------|-------|---------|---------|
+| **内容生成** | Phase 1 | 文本 → 结构化图表 | LLM + 结构化输出 |
+| **智能整理** | Phase 2 | 分析 → 分组 → 布局 | LLM + 聚类算法 |
+| **手绘识别** | Phase 2 | 草图 → 精确图形 | Vision API |
+| **会议助手** | 未来 | 实时总结、Action Items | LLM + 流式处理 |
+
+### Agent SDK 设计原则
 
 ```typescript
-// packages/ai-sdk/src/index.ts
-
-export interface AIProvider {
-  name: string;
-  capabilities: AICapability[];
-}
-
-export type AICapability =
-  | 'layout'          // 智能布局
-  | 'recognition'     // 手绘识别
-  | 'generation'      // 内容生成
-  | 'summarization';  // 总结归纳
-
-// 统一的 AI 客户端
-export class AIClient {
-  constructor(provider: AIProvider) {}
-
-  // 智能布局
-  async layoutNodes(nodes: Node[], edges: Edge[]): Promise<Node[]>;
-
-  // 手绘识别
-  async recognizeSketch(canvas: HTMLCanvasElement): Promise<Shape[]>;
-
-  // 未来扩展
-  async generateContent(prompt: string): Promise<Content>;
-  async summarize(content: Content[]): Promise<Summary>;
-}
+// 1. 所有 Agent 通过统一的 Canvas Operations API 操作画布
+// 2. LLM Provider 可替换（Claude、OpenAI、本地模型）
+// 3. 支持流式执行，边生成边渲染
+// 4. Agent 操作与用户操作一样，会同步给其他协作者
 ```
 
-**设计原则**：
-- ✅ 接口优先，按需实现
-- ✅ 支持多 Provider（OpenAI、Anthropic、本地模型）
-- ✅ 展示架构设计能力，不需要全部实现
+**核心优势**：
+- ✅ Agent 是一等公民，不是后加的功能
+- ✅ 统一的操作接口，保证一致性
+- ✅ 可扩展的 Agent SDK，方便开发新 Agent
+- ✅ 支持多 LLM Provider，不绑定特定服务商
 
 ---
 
@@ -501,29 +747,35 @@ export class AIClient {
 **Week 3-4: 渲染引擎**
 - [ ] PixiJS v8 集成（启用 WebGPU）
 - [ ] 无限画布（viewport、zoom、pan）
-- [ ] 基础图形渲染（矩形、圆形、线条）
+- [ ] 基础图形渲染（矩形、圆形、线条、连接线）
+- [ ] 实现 Canvas Operations API 基础接口
 - [ ] E2E 测试（canvas 截图对比）
 
-**Week 5-6: 编辑器核心**
+**Week 5-6: 内容生成 Agent ⭐**
+- [ ] Agent SDK 骨架（BaseAgent、LLMProvider）
+- [ ] Claude/OpenAI API 集成
+- [ ] 内容生成 Agent 实现（文本 → 图表）
+- [ ] Prompt 工程和结构化输出
+- [ ] Agent 命令面板 UI（类似 Notion 的 /）
+- [ ] 流式生成体验
+
+**Week 7-8: 编辑器核心**
 - [ ] 选择系统（单选、框选）
 - [ ] 拖拽变换（移动、缩放、旋转）
 - [ ] 撤销/重做
 - [ ] E2E 测试
 
-**Week 7-8: 实时协作**
+**Week 9-10: 实时协作**
 - [ ] Yjs 集成（通过 CRDT 抽象层）
 - [ ] Go WebSocket 服务
 - [ ] 多人光标/选择（Awareness）
+- [ ] Agent 操作也同步给其他用户
 - [ ] Dragonfly 缓存集成
 
-**Week 9-10: AI 智能布局 ⭐**
+**Week 11-12: 智能布局 + 打磨**
 - [ ] Rust 力导向图算法实现
-- [ ] WASM 编译和优化
-- [ ] 前端集成
-- [ ] 性能基准测试（对比纯 JS）
-
-**Week 11-12: 打磨和文档**
-- [ ] UI 组件（Radix UI + shadcn/ui）
+- [ ] WASM 编译和集成
+- [ ] UI 组件完善（Radix UI + shadcn/ui）
 - [ ] 性能优化
 - [ ] README + ARCHITECTURE.md
 - [ ] Demo 视频
@@ -531,6 +783,7 @@ export class AIClient {
 #### 交付物
 - ✅ 可用的白板应用
 - ✅ 实时协作功能
+- ✅ **内容生成 Agent**（文本 → 图表）
 - ✅ AI 智能布局（Rust WASM）
 - ✅ 核心技术文档
 
@@ -538,41 +791,42 @@ export class AIClient {
 
 ### Phase 2: 技术深度 + AI 增强 (3-6 个月)
 
-**目标**：自研 CRDT + 第 2 个 AI 功能
+**目标**：自研 CRDT + 扩展 Agent 能力
 
 #### 重点工作
 
-**Month 4-5: 自研 CRDT**
+**Month 4: 智能整理 Agent ⭐**
+- [ ] 画布内容分析（聚类、关系识别）
+- [ ] 自动分组和标签
+- [ ] 布局优化建议
+- [ ] 多轮对话优化
+
+**Month 5-6: 自研 CRDT**
 - [ ] YATA 算法核心实现
 - [ ] 完整测试套件（单元 + 属性测试）
 - [ ] 性能基准（对比 Yjs）
 - [ ] WASM 编译
 
-**Month 6: Go-Rust 集成**
+**Month 7: Go-Rust 集成**
 - [ ] Protocol Buffers 定义
 - [ ] Rust gRPC 服务
 - [ ] Go 客户端集成
 - [ ] 集成测试
 
-**Month 7: 并行运行**
+**Month 8: 并行运行 + 手绘识别**
 - [ ] Yjs 和自研 CRDT 并存
 - [ ] 环境变量切换
-- [ ] A/B 测试
-- [ ] 性能对比报告
-
-**Month 8: AI 手绘识别 ⭐**
 - [ ] OpenAI Vision API 集成
-- [ ] Canvas 截图和预处理
-- [ ] 形状识别和解析
-- [ ] 生成精确图形
+- [ ] 手绘 → 精确图形
 
 **Month 9: 文档和博客**
 - [ ] CRDT.md 详细文档
-- [ ] AI.md 架构说明
+- [ ] AGENT.md Agent 架构说明
 - [ ] 技术博客 2-3 篇
 
 #### 交付物
 - ✅ 自研 CRDT 达到生产可用
+- ✅ **智能整理 Agent**
 - ✅ AI 手绘识别功能
 - ✅ 完整技术文档
 - ✅ 性能对比报告
@@ -601,32 +855,43 @@ export class AIClient {
    - 实现细节
    - 性能测试结果
 
-4. **AI.md** - AI 架构设计
-   - AI 能力规划
-   - 已实现功能（智能布局、手绘识别）
-   - 接口设计
+4. **AGENT.md** - Agent 架构设计
+   - Agent SDK 设计
+   - 已实现 Agent（内容生成、智能整理）
+   - LLM Provider 抽象
+   - 扩展指南
+
+5. **AI.md** - AI 算法设计
+   - 智能布局算法
+   - 手绘识别
    - 未来扩展方向
 
-5. **PERFORMANCE.md** - 性能优化
+6. **PERFORMANCE.md** - 性能优化
    - 性能指标
    - 优化策略
    - 测试报告
 
 ### 技术博客主题
 
-1. **《从零实现白板的实时协作：CRDT 算法实践》**
+1. **《为白板工具构建 AI Agent：从 Prompt 到图表》**
+   - Agent 架构设计
+   - LLM 结构化输出
+   - 流式生成体验
+   - Prompt 工程实践
+
+2. **《从零实现白板的实时协作：CRDT 算法实践》**
    - CRDT 原理
    - YATA 算法详解
    - Rust 实现
    - 性能对比
 
-2. **《用 Rust WASM 加速前端布局算法》**
+3. **《用 Rust WASM 加速前端布局算法》**
    - 力导向图算法
    - Rust 实现和优化
    - WASM 集成
    - 性能提升分析
 
-3. **《Go 和 Rust 的混合架构实践》**
+4. **《Go 和 Rust 的混合架构实践》**
    - 为什么需要多语言
    - gRPC 集成方案
    - 实战经验
@@ -725,15 +990,16 @@ docker-compose up -d
    - 多语言协同架构（Go + Rust + TS）
    - 性能优化（Rust WASM）
 
-2. **务实路线**
+2. **AI 原生**
+   - **Agent 前置**：渲染引擎后立即开发，成为画布的第一个"用户"
+   - 内容生成 Agent（文本 → 图表）
+   - 智能整理 Agent（自动分组/布局）
+   - 可扩展的 Agent SDK
+
+3. **务实路线**
    - Phase 1 用成熟技术快速验证
    - Phase 2 自研核心模块
    - 抽象层保证平滑迁移
-
-3. **AI 增强**
-   - 智能布局（Rust WASM 实现）
-   - 手绘识别（OpenAI Vision）
-   - 可扩展的 AI 架构
 
 4. **工程质量**
    - 完整的测试（单元 + E2E）
@@ -743,16 +1009,27 @@ docker-compose up -d
 ### 核心优势
 
 - ✅ **技术栈现代且有深度**：不是简单的框架堆砌
-- ✅ **架构设计清晰**：分层合理，职责明确
-- ✅ **AI 集成有亮点**：不是简单调 API，有算法实现
+- ✅ **AI Agent 架构清晰**：Canvas Operations API + Agent SDK
+- ✅ **架构设计合理**：分层清晰，职责明确
 - ✅ **文档完整**：代码 + 文档 = 完整的技术展示
+
+### 关键里程碑
+
+| 时间点 | 里程碑 | 核心交付 |
+|--------|--------|----------|
+| Week 4 | 渲染引擎完成 | 可渲染元素的画布 |
+| Week 6 | **Agent 可用** | 文本 → 图表的完整链路 |
+| Week 10 | 协作完成 | 多人实时编辑 |
+| Month 4 | 智能整理 | 第二个 Agent |
+| Month 6 | 自研 CRDT | 核心技术深度 |
 
 ### 下一步行动
 
 1. **本周**：初始化项目结构
 2. **Week 1-2**：搭建基础框架
-3. **Week 3-4**：实现核心渲染
-4. **持续**：编写技术文档和博客
+3. **Week 3-4**：实现渲染引擎 + Canvas Operations API
+4. **Week 5-6**：实现内容生成 Agent ⭐
+5. **持续**：编写技术文档和博客
 
 ---
 

@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "AI-native collaborative whiteboard with self-implemented CRDT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
   "scripts": {
     "dev": "pnpm --parallel dev",
     "build": "pnpm -r build",
@@ -13,12 +17,21 @@
     "clean": "pnpm -r clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.0",
-    "prettier": "^3.1.0",
-    "typescript": "^5.3.0"
+    "@antfu/eslint-config": "catalog:",
+    "@playwright/test": "catalog:",
+    "eslint": "catalog:",
+    "husky": "catalog:",
+    "lint-staged": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:"
   },
-  "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=8.0.0"
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }

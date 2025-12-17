@@ -1,4 +1,4 @@
-import antfu from '@antfu/eslint-config'
+import antfu from '@antfu/eslint-config';
 
 export default antfu({
   // TypeScript 和 React 支持会自动检测
@@ -32,4 +32,4 @@ export default antfu({
     'plan.md',
     'PROJECT_ARCHITECTURE.md',
   ],
-})
+});

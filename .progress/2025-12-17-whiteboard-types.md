@@ -2,8 +2,8 @@
 
 > 创建时间: 2024-12-17
 > 最后更新: 2024-12-18
-> 状态: 进行中 - 架构决策完成，准备实现类型
-> 下次开始位置: 从 ids.ts 开始实现类型定义
+> 状态: 进行中 - ids.ts 已完成，准备实现 geometry.ts
+> 下次开始位置: 实现 geometry.ts（Point, Vec2, Box 等几何类型）
 
 ---
 
@@ -545,13 +545,37 @@ store.subscribe((changes) => ai.analyze(changes))
 
 ---
 
+## 2024-12-18 实现进度
+
+### 今日完成
+
+**✅ ids.ts 实现完成**
+
+实现内容：
+- ✅ 5 种 Branded Type ID 定义（ShapeId, BindingId, AssetId, DocumentId, UserId）
+- ✅ ID 生成函数（使用 crypto.randomUUID()）
+- ✅ 5 个创建函数（createShapeId, createBindingId 等）
+- ✅ 5 个类型守卫（isShapeId, isBindingId 等）
+- ✅ 完整的 JSDoc 注释
+
+关键决策：
+1. **Branded Type 原理学习**：理解了如何用 `string & { readonly __brand: 'Type' }` 实现编译时类型安全
+2. **包职责边界**：决定将类型和相关操作函数放在一起（内聚性优先）
+3. **ID 格式**：`prefix:uuid` 格式（如 `shape:550e8400-e29b-41d4-a716-446655440000`）
+4. **ID 生成策略**：使用 `crypto.randomUUID()`，不包含 clientId（简单优先，clientId 在需要时单独传递）
+5. **兼容性方案**：选择最简单方案，要求 Node.js 15.6+ 或现代浏览器
+
+文件位置：`packages/types/src/ids.ts` (170 行)
+
+---
+
 ## 更新后的 Todo 列表
 
 ```
 ✅ 1. Create packages/types package.json and tsconfig.json
 ✅ 2. 完成所有架构决策
-⏳ 3. Define ID types (ids.ts) - 下一步
-⏳ 4. Define geometry types (geometry.ts)
+✅ 3. Define ID types (ids.ts) - 已完成
+⏳ 4. Define geometry types (geometry.ts) - 下一步
 ⏳ 5. Define Shape types (shapes.ts)
 ⏳ 6. Define Binding types (bindings.ts)
 ⏳ 7. Define Store interface (store.ts)
@@ -562,13 +586,24 @@ store.subscribe((changes) => ai.analyze(changes))
 
 ## 下次开始时
 
-直接开始写代码，从 `packages/types/src/ids.ts` 开始：
+从 `packages/types/src/geometry.ts` 开始，需要思考：
 
-```typescript
-// ids.ts - 第一个文件
-export type ShapeId = string & { __brand: 'ShapeId' }
+### 需要实现的几何类型
 
-export function createShapeId(id?: string): ShapeId {
-  return `shape:${id ?? generateId()}` as ShapeId
-}
-```
+根据架构决策，变换属性（x, y, rotation）直接平铺在 Shape 顶层，因此 geometry.ts 应该包含：
+
+**基础类型**：
+- `Point` - 点坐标 `{ x, y }`
+- `Vec2` - 二维向量（与 Point 的区别？）
+- `Box` - 矩形边界框 `{ x, y, width, height }`
+
+**待讨论**：
+- Point 和 Vec2 是同一个类型还是分开？
+- 是否需要 Transform 类型？（考虑到 x, y, rotation 已经平铺）
+- 是否需要其他几何类型？（Circle, Line, Polygon 等）
+
+**参考资料**：
+- 查看进度文件中的架构决策部分 (line 403)
+- tldraw 的几何类型定义
+
+---

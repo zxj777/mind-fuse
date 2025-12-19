@@ -1,9 +1,9 @@
 # 白板类型系统设计 - 进度记录
 
 > 创建时间: 2024-12-17
-> 最后更新: 2024-12-18
-> 状态: 进行中 - ids.ts 已完成，准备实现 geometry.ts
-> 下次开始位置: 实现 geometry.ts（Point, Vec2, Box 等几何类型）
+> 最后更新: 2024-12-19
+> 状态: 进行中 - ids.ts, geometry.ts, shapes.ts 已完成，准备实现 bindings.ts
+> 下次开始位置: 实现 bindings.ts（Binding 类型 + NormalizedPoint）
 
 ---
 
@@ -605,5 +605,144 @@ store.subscribe((changes) => ai.analyze(changes))
 **参考资料**：
 - 查看进度文件中的架构决策部分 (line 403)
 - tldraw 的几何类型定义
+
+---
+
+## 2024-12-19 实现进度
+
+### 今日完成
+
+**✅ geometry.ts 实现完成**
+
+实现内容：
+- ✅ Point 类型（Branded Type）+ 工具函数（create, distance, midpoint, translate, subtract）
+- ✅ Vec2 类型（Branded Type）+ 工具函数（create, add, sub, length）
+- ✅ Box 类型（x, y, width, height, rotation）+ 工具函数（create, contains, intersects）
+- ✅ BoxBounds 内部辅助类型
+
+关键决策：
+1. **Point 和 Vec2 分开**：语义不同（位置 vs 位移），使用 Branded Type 区分
+2. **Branded Type 混合方式**：类型定义用必须的 `__brand`，实现用 `as` 断言（运行时零开销）
+3. **Box 需要 rotation**：用于 OBB（Oriented Bounding Box），支持旋转后的选区边框
+4. **命名空间风格**：`Point.create()`, `Vec2.add()` 而不是 class 方法
+5. **Box 是几何工具，不是 Shape**：用于碰撞检测、框选计算，不存储
+
+文件位置：`packages/types/src/geometry.ts` (86 行)
+
+---
+
+**✅ shapes.ts 实现完成**
+
+实现内容：
+- ✅ BaseShape<Type, Props> 泛型基类
+- ✅ RectShape（width, height, fill, stroke, strokeWidth）
+- ✅ LineShape（endX, endY, stroke, strokeWidth）
+- ✅ GroupShape（空 props）
+- ✅ Shape 联合类型
+
+关键决策：
+1. **字符串字面量而非 enum**：支持插件扩展，第三方可以定义自定义 shape 类型
+2. **BaseShape 导出**：外部可以使用泛型约束
+3. **isLocked 在 BaseShape**：所有 shape 共有的属性
+4. **Line vs Connector**：Line 是简单直线，Connector 是带 Binding 的连接线（后续实现）
+5. **LineShape 的 endX, endY 是相对偏移**：相对于起点 (x, y)，拖动时只需更新 x, y
+6. **Rect 的 x, y 是中心点**：Miro 风格，旋转时以中心为原点
+
+文件位置：`packages/types/src/shapes.ts` (40 行)
+
+---
+
+### 关键概念学习
+
+#### 归一化坐标（NormalizedPoint）
+
+**用途**：Binding 的 anchor 位置，用 0-1 比例表示 shape 边界上的位置
+
+```typescript
+// 归一化坐标
+{ x: 0, y: 0 }     // 左上角
+{ x: 1, y: 0 }     // 右上角
+{ x: 0.5, y: 0.5 } // 中心
+{ x: 1, y: 0.5 }   // 右边中点
+
+// 转换为世界坐标（考虑旋转）
+// 1. 归一化 → 局部坐标（相对于 shape 中心）
+const localX = (anchor.x - 0.5) * width
+const localY = (anchor.y - 0.5) * height
+
+// 2. 应用旋转
+const rotatedX = localX * cos(rotation) - localY * sin(rotation)
+const rotatedY = localX * sin(rotation) + localY * cos(rotation)
+
+// 3. 加上 shape 的世界坐标
+const worldX = shape.x + rotatedX
+const worldY = shape.y + rotatedY
+```
+
+**为什么用归一化坐标**：
+- shape 缩放时，anchor 位置自动跟随（"右边中点"始终是右边中点）
+- 存储的是语义位置，不是绝对像素值
+
+---
+
+### Binding 设计讨论（待实现）
+
+**核心概念**：Binding 是独立的"绑定关系"，让 Line 的端点跟随另一个 shape
+
+```typescript
+interface Binding {
+  id: BindingId
+  fromId: ShapeId        // 哪个 shape（比如 Line）
+  fromTerminal: ???      // 哪个端点？起点还是终点？
+  toId: ShapeId          // 绑定到哪个 shape（比如 Rect）
+  anchor: NormalizedPoint // 绑定位置（归一化坐标）
+}
+```
+
+**待决定**：
+- `fromTerminal` 的类型：`'start' | 'end'`？还是其他方式？
+- `NormalizedPoint` 放在 geometry.ts 还是 bindings.ts？
+
+---
+
+## 更新后的 Todo 列表
+
+```
+✅ 1. Create packages/types package.json and tsconfig.json
+✅ 2. 完成所有架构决策
+✅ 3. Define ID types (ids.ts)
+✅ 4. Define geometry types (geometry.ts)
+✅ 5. Define Shape types (shapes.ts)
+⏳ 6. Define Binding types (bindings.ts) - 下一步
+⏳ 7. Define Store interface (store.ts)
+⏳ 8. Create index.ts exports
+```
+
+---
+
+## 下次开始时
+
+从 `packages/types/src/bindings.ts` 开始：
+
+**需要实现**：
+1. `NormalizedPoint` 类型（可能放在 geometry.ts）
+2. `Binding` 接口
+3. `fromTerminal` 的类型定义
+
+**设计问题**：
+```typescript
+interface Binding {
+  id: BindingId
+  fromId: ShapeId
+  fromTerminal: 'start' | 'end'  // 或者其他方式？
+  toId: ShapeId
+  anchor: NormalizedPoint
+}
+```
+
+**记住**：
+- Binding 让 Line 的端点"跟随" shape
+- Line 本身不知道自己被绑定了
+- 当 shape 移动时，系统查询 Binding 表，更新 Line 的端点坐标
 
 ---

@@ -1,0 +1,26 @@
+# .gitmessage
+
+# <type>(<scope>): <subject>
+#
+# Types:
+#   feat:     A new feature
+#   fix:      A bug fix
+#   docs:     Documentation only changes
+#   style:    Code style changes (formatting, semicolons, etc)
+#   refactor: Code change that neither fixes a bug nor adds a feature
+#   test:     Adding or updating tests
+#   chore:    Changes to build process or auxiliary tools
+#
+# Scope examples:
+#   web, editor, types, canvas, state-manager, progress, planning
+#
+# Subject:
+#   - Use imperative mood ("add" not "added")
+#   - Lowercase first letter
+#   - No period at the end
+#   - Max 50 characters
+#
+# Examples:
+#   feat(web): add command palette for canvas tools
+#   fix(state-manager): handle empty undo stack
+#   docs(progress): add implementation progress notes

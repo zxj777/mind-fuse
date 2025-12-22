@@ -1,0 +1,49 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "gitlens.ai.generateCommitMessage.customInstructions": "Generate a commit message that strictly matches this repository's convention.\n\nRequired format:\n<type>(<scope>): <subject>\n\nAllowed types (exactly): feat, fix, docs, style, refactor, test, chore, build\nScope:\n- Optional, but strongly preferred when it improves clarity.\n- Use one short, kebab-case scope that matches the affected area.\n- Scope examples: web, editor, editor-core, canvas, canvas-engine, state-manager, types, shared-types, ui-kit, progress, planning\n\nSubject rules (hard):\n- Use imperative mood (\"add\" not \"added\")\n- Lowercase first letter\n- No period at the end\n- Max 50 characters\n\nBody and footer:\n- If the change is non-trivial, add a body after a blank line explaining WHY (and briefly HOW if not obvious).\n- Wrap body lines at ~72 characters.\n- Use footer lines for references, fixes, or breaking changes when applicable:\n  - Fixes: #1234\n  - Refs: #5678\n  - BREAKING CHANGE: <description>\n\nHard routing rules:\n- If staged changes modify ONLY documentation files (e.g. *.md, docs/**, .progress/**), ALWAYS use type 'docs'.\n- If staged changes are under .progress/**, use scope 'progress'.\n\nOutput rules:\n- Output ONLY the final commit message (no commentary, no quotes, no markdown).\n- Generate based on the staged changes."
+  // "gitlens.generateCommitMessage.instructions": [
+  //   {
+  //     "text": "Use the repository format: <type>(<scope>): <subject>."
+  //   },
+  //   {
+  //     "text": "Allowed types (exactly): feat, fix, docs, style, refactor, test, chore, build."
+  //   },
+  //   {
+  //     "text": "Scope is optional but preferred; use one short kebab-case scope. Examples: web, editor, editor-core, canvas, canvas-engine, state-manager, types, shared-types, ui-kit, progress, planning."
+  //   },
+  //   {
+  //     "text": "Subject rules: imperative mood, lowercase, no period, max 50 chars."
+  //   },
+  //   {
+  //     "text": "Body/footer: for non-trivial changes, add body after a blank line explaining why; wrap ~72 chars; footer can include Fixes:/Refs:/BREAKING CHANGE:."
+  //   },
+  //   {
+  //     "text": "Hard rule: If staged changes modify ONLY documentation files (e.g. *.md, docs/**, .progress/**), ALWAYS use type 'docs'."
+  //   },
+  //   {
+  //     "text": "Hard rule: If staged changes are under .progress/**, use scope 'progress'."
+  //   }
+  // ]
+}

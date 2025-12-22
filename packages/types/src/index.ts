@@ -1,1 +1,5 @@
 export * from './ids'
+export * from './shapes'
+// export * from './bindings'
+// export * from './document'
+export * from './geometry'

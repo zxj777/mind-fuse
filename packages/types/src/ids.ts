@@ -22,6 +22,16 @@ export type ShapeId = string & { readonly __brand: 'ShapeId' }
 export type BindingId = string & { readonly __brand: 'BindingId' }
 
 /**
+ * Comment ID - Uniquely identifies a comment
+ */
+export type CommentId = string & { readonly __brand: 'CommentId' }
+
+/**
+ * Reply ID - Uniquely identifies a reply to a comment
+ */
+export type ReplyId = string & { readonly __brand: 'ReplyId' }
+
+/**
  * Asset ID - Uniquely identifies an asset (image, video, etc.)
  */
 export type AssetId = string & { readonly __brand: 'AssetId' }
@@ -82,6 +92,26 @@ export function createShapeId(id?: string): ShapeId {
  */
 export function createBindingId(id?: string): BindingId {
   return `binding:${id ?? generateId()}` as BindingId
+}
+
+/**
+ * Creates a new CommentId
+ *
+ * @param id - Optional custom ID. If not provided, generates a new UUID
+ * @returns A CommentId with format `comment:uuid`
+ */
+export function createCommentId(id?: string): CommentId {
+  return `comment:${id ?? generateId()}` as CommentId
+}
+
+/**
+ * Creates a new ReplyId
+ *
+ * @param id - Optional custom ID. If not provided, generates a new UUID
+ * @returns A ReplyId with format `reply:uuid`
+ */
+export function createReplyId(id?: string): ReplyId {
+  return `reply:${id ?? generateId()}` as ReplyId
 }
 
 /**
@@ -146,6 +176,26 @@ export function isShapeId(id: string): id is ShapeId {
  */
 export function isBindingId(id: string): id is BindingId {
   return id.startsWith('binding:')
+}
+
+/**
+ * Checks if a string is a valid CommentId format
+ *
+ * @param id - String to check
+ * @returns True if the string starts with "comment:"
+ */
+export function isCommentId(id: string): id is CommentId {
+  return id.startsWith('comment:')
+}
+
+/**
+ * Checks if a string is a valid ReplyId format
+ *
+ * @param id - String to check
+ * @returns True if the string starts with "reply:"
+ */
+export function isReplyId(id: string): id is ReplyId {
+  return id.startsWith('reply:')
 }
 
 /**

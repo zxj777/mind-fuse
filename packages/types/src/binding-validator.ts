@@ -138,9 +138,10 @@ export function validateCommentBinding(
   }
 
   // Check toId can be a binding target
-  // Note: Based on user testing, comments cannot attach to groups
-  if (toShape.type === 'group') {
-    throw new InvalidBindingTargetError(binding.toId, 'Comments cannot attach to groups')
+  // Note: Groups are not shapes, so they cannot be referenced by toId
+  // Lines also cannot be binding targets for comments
+  if (!isBindableTarget(toShape)) {
+    throw new InvalidBindingTargetError(binding.toId, 'Invalid binding target')
   }
 }
 

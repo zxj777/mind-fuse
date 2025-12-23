@@ -1,4 +1,5 @@
-import { ShapeId } from './ids'
+import { GroupId, ShapeId } from './ids'
+import type { Box, Point } from './geometry'
 
 // ============================================================================
 // Base Shape
@@ -10,12 +11,24 @@ import { ShapeId } from './ids'
  * @remarks
  * All shapes inherit these properties, but some may have semantic restrictions:
  * - LineShape: rotation is always 0 (lines are defined by endpoints, not rotation)
- * - GroupShape: has no visual properties of its own
+ *
+ * Coordinates (x, y, rotation) are always in world/absolute space, not relative
+ * to any parent or group. The groupId field is for logical grouping only and
+ * does not affect coordinate transformations.
  */
 export interface BaseShape<Type extends string, Props extends object> {
   id: ShapeId
   type: Type
-  parentId: ShapeId | null
+  /**
+   * Optional group membership
+   *
+   * @remarks
+   * - This is a logical grouping, not a spatial parent-child relationship
+   * - Shapes in a group still store absolute world coordinates
+   * - Moving a group updates all member shapes' coordinates
+   * - Reserved for future: parentId for true parent-child relationships (Frame/Artboard)
+   */
+  groupId?: GroupId
   index: string
   x: number
   y: number
@@ -94,26 +107,16 @@ export interface RectShape
   > {}
 
 // ============================================================================
-// Group Shape
-// ============================================================================
-
-/**
- * GroupShape - A container for organizing multiple shapes
- *
- * @remarks
- * Groups have no visual representation of their own.
- * Children shapes reference the group via their parentId.
- */
-export interface GroupShape extends BaseShape<'group', Record<string, never>> {}
-
-// ============================================================================
 // Shape Union
 // ============================================================================
 
 /**
  * Shape - Union of all shape types
+ *
+ * @remarks
+ * Note: Groups are NOT shapes. They are separate entities defined in groups.ts
  */
-export type Shape = RectShape | LineShape | GroupShape
+export type Shape = RectShape | LineShape
 
 // ============================================================================
 // Type Guards
@@ -134,13 +137,6 @@ export function isLineShape(shape: Shape): shape is LineShape {
 }
 
 /**
- * Type guard to check if a shape is a GroupShape
- */
-export function isGroupShape(shape: Shape): shape is GroupShape {
-  return shape.type === 'group'
-}
-
-/**
  * Type guard to check if a shape can be used as a connector (has endpoints)
  *
  * @remarks
@@ -156,8 +152,143 @@ export function isConnectorShape(shape: Shape): shape is LineShape {
  *
  * @remarks
  * Lines cannot be binding targets (you can't bind a line to another line).
+ * Groups are also not valid binding targets (bindings must target actual shapes).
  * This prevents invalid binding configurations.
  */
 export function isBindableTarget(shape: Shape): boolean {
   return !isLineShape(shape)
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Gets the bounding box for a shape
+ *
+ * @remarks
+ * - For RectShape: returns the bounding box with x, y as top-left corner
+ * - For LineShape: computes AABB from start and end points
+ * - Rotation is preserved in the returned Box
+ *
+ * @param shape - The shape to get bounds for
+ * @returns The bounding box
+ *
+ * @example
+ * ```typescript
+ * const rect: RectShape = { x: 100, y: 100, props: { width: 50, height: 30 } }
+ * const bounds = getShapeBounds(rect)
+ * // { x: 100, y: 100, width: 50, height: 30, rotation: 0 }
+ * ```
+ */
+export function getShapeBounds(shape: Shape): Box {
+  switch (shape.type) {
+    case 'rect':
+      return {
+        x: shape.x,
+        y: shape.y,
+        width: shape.props.width,
+        height: shape.props.height,
+        rotation: shape.rotation,
+      }
+    case 'line': {
+      // Line bounds: from (x, y) to (x + endX, y + endY)
+      const x1 = shape.x
+      const y1 = shape.y
+      const x2 = shape.x + shape.props.endX
+      const y2 = shape.y + shape.props.endY
+      return {
+        x: Math.min(x1, x2),
+        y: Math.min(y1, y2),
+        width: Math.abs(x2 - x1),
+        height: Math.abs(y2 - y1),
+        rotation: 0, // Lines don't rotate
+      }
+    }
+    default: {
+      // Exhaustiveness check: if we get here, a new shape type was added
+      // but this function wasn't updated. TypeScript will error if all
+      // cases aren't handled.
+      const _exhaustive: never = shape
+      void _exhaustive // Suppress unused variable warning
+      return { x: 0, y: 0, width: 0, height: 0, rotation: 0 }
+    }
+  }
+}
+
+/**
+ * Gets the center point of a shape
+ *
+ * @param shape - The shape to get center for
+ * @returns The center point in world coordinates
+ *
+ * @example
+ * ```typescript
+ * const rect: RectShape = { x: 100, y: 100, props: { width: 50, height: 30 } }
+ * const center = getShapeCenter(rect)
+ * // { x: 125, y: 115 }
+ * ```
+ */
+export function getShapeCenter(shape: Shape): Point {
+  const bounds = getShapeBounds(shape)
+  return {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+  } as Point
+}
+
+/**
+ * Gets the four corners of a rotated shape's bounding box
+ *
+ * @param shape - The shape to get corners for
+ * @returns Array of four corner points in world coordinates
+ *
+ * @remarks
+ * This computes the actual positions of the four corners after rotation.
+ * Useful for collision detection, selection rendering, etc.
+ *
+ * @example
+ * ```typescript
+ * const rect: RectShape = { x: 100, y: 100, rotation: Math.PI / 4, props: { width: 50, height: 30 } }
+ * const corners = getRotatedCorners(rect)
+ * // [{ x: ..., y: ... }, ...]
+ * ```
+ */
+export function getRotatedCorners(shape: Shape): Array<Point> {
+  const bounds = getShapeBounds(shape)
+  const { x, y, width, height, rotation } = bounds
+
+  // No rotation, return corners directly
+  if (rotation === 0) {
+    return [
+      { x, y } as Point, // Top-left
+      { x: x + width, y } as Point, // Top-right
+      { x: x + width, y: y + height } as Point, // Bottom-right
+      { x, y: y + height } as Point, // Bottom-left
+    ]
+  }
+
+  const cos = Math.cos(rotation)
+  const sin = Math.sin(rotation)
+
+  // Center point
+  const cx = x + width / 2
+  const cy = y + height / 2
+
+  // Four corners relative to center
+  const relativeCorners = [
+    { x: -width / 2, y: -height / 2 }, // Top-left
+    { x: width / 2, y: -height / 2 }, // Top-right
+    { x: width / 2, y: height / 2 }, // Bottom-right
+    { x: -width / 2, y: height / 2 }, // Bottom-left
+  ]
+
+  // Rotate each corner around center
+  return relativeCorners.map(
+    (corner) =>
+      ({
+        x: cx + corner.x * cos - corner.y * sin,
+        y: cy + corner.x * sin + corner.y * cos,
+      }) as Point
+  )
 }

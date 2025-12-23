@@ -46,6 +46,11 @@ export type DocumentId = string & { readonly __brand: 'DocumentId' }
  */
 export type UserId = string & { readonly __brand: 'UserId' }
 
+/**
+ * Group ID - Uniquely identifies a group of shapes
+ */
+export type GroupId = string & { readonly __brand: 'GroupId' }
+
 // ============================================================================
 // ID Generation
 // ============================================================================
@@ -144,6 +149,16 @@ export function createUserId(id?: string): UserId {
   return `user:${id ?? generateId()}` as UserId
 }
 
+/**
+ * Creates a new GroupId
+ *
+ * @param id - Optional custom ID. If not provided, generates a new UUID
+ * @returns A GroupId with format `group:uuid`
+ */
+export function createGroupId(id?: string): GroupId {
+  return `group:${id ?? generateId()}` as GroupId
+}
+
 // ============================================================================
 // Type Guards
 // ============================================================================
@@ -216,4 +231,14 @@ export function isAssetId(id: string): id is AssetId {
  */
 export function isUserId(id: string): id is UserId {
   return id.startsWith('user:')
+}
+
+/**
+ * Checks if a string is a valid GroupId format
+ *
+ * @param id - String to check
+ * @returns True if the string starts with "group:"
+ */
+export function isGroupId(id: string): id is GroupId {
+  return id.startsWith('group:')
 }

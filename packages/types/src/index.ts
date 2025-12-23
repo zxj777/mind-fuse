@@ -1,6 +1,7 @@
 export * from './ids'
 export * from './geometry'
 export * from './shapes'
+export * from './groups'
 export * from './bindings'
 export * from './binding-validator'
 export * from './comment'

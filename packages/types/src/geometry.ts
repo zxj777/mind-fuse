@@ -10,16 +10,18 @@ export interface Vec2 {
   readonly __brand: 'Vec2'
 }
 
+/**
+ * Box - Axis-Aligned Bounding Box (AABB)
+ *
+ * @remarks
+ * Box always represents an axis-aligned rectangle (no rotation).
+ * Used for fast collision detection, viewport culling, and selection.
+ */
 export interface Box {
   x: number
   y: number
   width: number
   height: number
-  /**
-   * Rotation in radians.
-   * Note: Current helpers treat Box as an axis-aligned rectangle (AABB) and ignore rotation.
-   */
-  rotation: number
 }
 
 interface BoxBounds {
@@ -71,7 +73,25 @@ export const Vec2 = {
 
 export const Box = {
   create(x: number, y: number, width: number, height: number): Box {
-    return { x, y, width, height, rotation: 0 } as Box
+    return { x, y, width, height } as Box
+  },
+  /**
+   * Creates a Box from an array of points by computing the AABB
+   *
+   * @param points - Array of points to compute bounding box for
+   * @returns The smallest axis-aligned box containing all points
+   */
+  fromPoints(points: Point[]): Box {
+    if (points.length === 0) {
+      return { x: 0, y: 0, width: 0, height: 0 }
+    }
+    const xs = points.map((p) => p.x)
+    const ys = points.map((p) => p.y)
+    const minX = Math.min(...xs)
+    const maxX = Math.max(...xs)
+    const minY = Math.min(...ys)
+    const maxY = Math.max(...ys)
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
   },
   contains(box: Box, point: Point): boolean {
     const bounds: BoxBounds = getBoxBounds(box)

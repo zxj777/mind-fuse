@@ -1,5 +1,6 @@
 import { GroupId, ShapeId } from './ids'
-import type { Box, Point } from './geometry'
+import { Box, Point } from './geometry'
+import type { Box as BoxType, Point as PointType } from './geometry'
 
 // ============================================================================
 // Base Shape
@@ -164,46 +165,46 @@ export function isBindableTarget(shape: Shape): boolean {
 // ============================================================================
 
 /**
- * Gets the bounding box for a shape
+ * Gets the axis-aligned bounding box (AABB) for a shape
  *
  * @remarks
- * - For RectShape: returns the bounding box with x, y as top-left corner
+ * - For RectShape: if rotated, computes AABB from rotated corners; otherwise returns original bounds
  * - For LineShape: computes AABB from start and end points
- * - Rotation is preserved in the returned Box
+ * - The returned Box is always axis-aligned (no rotation)
+ * - Used for fast collision detection, viewport culling, and selection
  *
- * @param shape - The shape to get bounds for
- * @returns The bounding box
+ * @param shape - The shape to get AABB for
+ * @returns The axis-aligned bounding box
  *
  * @example
  * ```typescript
- * const rect: RectShape = { x: 100, y: 100, props: { width: 50, height: 30 } }
- * const bounds = getShapeBounds(rect)
- * // { x: 100, y: 100, width: 50, height: 30, rotation: 0 }
+ * const rect: RectShape = { x: 100, y: 100, rotation: 0, props: { width: 50, height: 30 } }
+ * const aabb = getShapeAABB(rect)
+ * // { x: 100, y: 100, width: 50, height: 30 }
+ *
+ * const rotatedRect: RectShape = { x: 100, y: 100, rotation: Math.PI/4, props: { width: 50, height: 30 } }
+ * const rotatedAABB = getShapeAABB(rotatedRect)
+ * // AABB will be larger to contain the rotated shape
  * ```
  */
-export function getShapeBounds(shape: Shape): Box {
+export function getShapeAABB(shape: Shape): BoxType {
   switch (shape.type) {
-    case 'rect':
-      return {
-        x: shape.x,
-        y: shape.y,
-        width: shape.props.width,
-        height: shape.props.height,
-        rotation: shape.rotation,
+    case 'rect': {
+      // If rotated, compute AABB from corners
+      if (shape.rotation !== 0) {
+        const corners = getRotatedCorners(shape)
+        return Box.fromPoints(corners)
       }
+      // No rotation: return original bounds
+      return Box.create(shape.x, shape.y, shape.props.width, shape.props.height)
+    }
     case 'line': {
-      // Line bounds: from (x, y) to (x + endX, y + endY)
+      // Line AABB: from (x, y) to (x + endX, y + endY)
       const x1 = shape.x
       const y1 = shape.y
       const x2 = shape.x + shape.props.endX
       const y2 = shape.y + shape.props.endY
-      return {
-        x: Math.min(x1, x2),
-        y: Math.min(y1, y2),
-        width: Math.abs(x2 - x1),
-        height: Math.abs(y2 - y1),
-        rotation: 0, // Lines don't rotate
-      }
+      return Box.create(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1))
     }
     default: {
       // Exhaustiveness check: if we get here, a new shape type was added
@@ -211,7 +212,7 @@ export function getShapeBounds(shape: Shape): Box {
       // cases aren't handled.
       const _exhaustive: never = shape
       void _exhaustive // Suppress unused variable warning
-      return { x: 0, y: 0, width: 0, height: 0, rotation: 0 }
+      return Box.create(0, 0, 0, 0)
     }
   }
 }
@@ -222,6 +223,10 @@ export function getShapeBounds(shape: Shape): Box {
  * @param shape - The shape to get center for
  * @returns The center point in world coordinates
  *
+ * @remarks
+ * For RectShape, returns the center of the original (non-rotated) bounds.
+ * This is the rotation pivot point for rotated shapes.
+ *
  * @example
  * ```typescript
  * const rect: RectShape = { x: 100, y: 100, props: { width: 50, height: 30 } }
@@ -229,12 +234,18 @@ export function getShapeBounds(shape: Shape): Box {
  * // { x: 125, y: 115 }
  * ```
  */
-export function getShapeCenter(shape: Shape): Point {
-  const bounds = getShapeBounds(shape)
-  return {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height / 2,
-  } as Point
+export function getShapeCenter(shape: Shape): PointType {
+  switch (shape.type) {
+    case 'rect':
+      return Point.create(shape.x + shape.props.width / 2, shape.y + shape.props.height / 2)
+    case 'line':
+      return Point.create(shape.x + shape.props.endX / 2, shape.y + shape.props.endY / 2)
+    default: {
+      const _exhaustive: never = shape
+      void _exhaustive
+      return Point.create(0, 0)
+    }
+  }
 }
 
 /**
@@ -246,6 +257,7 @@ export function getShapeCenter(shape: Shape): Point {
  * @remarks
  * This computes the actual positions of the four corners after rotation.
  * Useful for collision detection, selection rendering, etc.
+ * For LineShape, returns the two endpoints (start and end).
  *
  * @example
  * ```typescript
@@ -254,41 +266,155 @@ export function getShapeCenter(shape: Shape): Point {
  * // [{ x: ..., y: ... }, ...]
  * ```
  */
-export function getRotatedCorners(shape: Shape): Array<Point> {
-  const bounds = getShapeBounds(shape)
-  const { x, y, width, height, rotation } = bounds
+export function getRotatedCorners(shape: Shape): Array<PointType> {
+  switch (shape.type) {
+    case 'rect': {
+      const { x, y, rotation, props } = shape
+      const { width, height } = props
 
-  // No rotation, return corners directly
-  if (rotation === 0) {
-    return [
-      { x, y } as Point, // Top-left
-      { x: x + width, y } as Point, // Top-right
-      { x: x + width, y: y + height } as Point, // Bottom-right
-      { x, y: y + height } as Point, // Bottom-left
-    ]
+      // No rotation, return corners directly
+      if (rotation === 0) {
+        return [
+          Point.create(x, y), // Top-left
+          Point.create(x + width, y), // Top-right
+          Point.create(x + width, y + height), // Bottom-right
+          Point.create(x, y + height), // Bottom-left
+        ]
+      }
+
+      const cos = Math.cos(rotation)
+      const sin = Math.sin(rotation)
+
+      // Center point
+      const cx = x + width / 2
+      const cy = y + height / 2
+
+      // Four corners relative to center
+      const relativeCorners = [
+        { x: -width / 2, y: -height / 2 }, // Top-left
+        { x: width / 2, y: -height / 2 }, // Top-right
+        { x: width / 2, y: height / 2 }, // Bottom-right
+        { x: -width / 2, y: height / 2 }, // Bottom-left
+      ]
+
+      // Rotate each corner around center
+      return relativeCorners.map((corner) =>
+        Point.create(cx + corner.x * cos - corner.y * sin, cy + corner.x * sin + corner.y * cos)
+      )
+    }
+    case 'line': {
+      // For lines, return the two endpoints
+      const x1 = shape.x
+      const y1 = shape.y
+      const x2 = shape.x + shape.props.endX
+      const y2 = shape.y + shape.props.endY
+      return [Point.create(x1, y1), Point.create(x2, y2)]
+    }
+    default: {
+      const _exhaustive: never = shape
+      void _exhaustive
+      return []
+    }
+  }
+}
+
+/**
+ * Checks if a point is inside a shape (precise hit detection)
+ *
+ * @param point - The point to test
+ * @param shape - The shape to test against
+ * @returns true if the point is inside the shape
+ *
+ * @remarks
+ * - For RectShape: Uses inverse rotation to transform point to local space,
+ *   then does simple rectangle containment test. Handles rotation precisely.
+ * - For LineShape: Checks if point is within a threshold distance from the line segment.
+ *   The threshold is based on strokeWidth with a minimum of 4px for easier clicking.
+ *
+ * Use this for click detection where precision matters.
+ * For fast bulk operations (e.g., viewport culling), use getShapeAABB + Box.intersects instead.
+ *
+ * @example
+ * ```typescript
+ * const rect: RectShape = { x: 100, y: 100, rotation: Math.PI/4, props: { width: 50, height: 30 } }
+ * const clicked = isPointInShape(Point.create(125, 115), rect) // true (center)
+ * const missed = isPointInShape(Point.create(200, 200), rect)  // false
+ * ```
+ */
+export function isPointInShape(point: PointType, shape: Shape): boolean {
+  switch (shape.type) {
+    case 'rect': {
+      const { x, y, rotation, props } = shape
+      const { width, height } = props
+
+      // Calculate center point
+      const cx = x + width / 2
+      const cy = y + height / 2
+
+      // Transform point to shape's local coordinate system (inverse rotation)
+      const cos = Math.cos(-rotation)
+      const sin = Math.sin(-rotation)
+      const dx = point.x - cx
+      const dy = point.y - cy
+      const localX = dx * cos - dy * sin
+      const localY = dx * sin + dy * cos
+
+      // Check if point is inside the rectangle in local space
+      return localX >= -width / 2 && localX <= width / 2 && localY >= -height / 2 && localY <= height / 2
+    }
+    case 'line': {
+      // Line hit detection: check if point is within threshold distance from line segment
+      const threshold = Math.max(shape.props.strokeWidth / 2, 4) // Minimum 4px for easier clicking
+      const distance = pointToLineSegmentDistance(point, shape)
+      return distance <= threshold
+    }
+    default: {
+      const _exhaustive: never = shape
+      void _exhaustive
+      return false
+    }
+  }
+}
+
+/**
+ * Calculates the minimum distance from a point to a line segment
+ *
+ * @param point - The point
+ * @param line - The line shape
+ * @returns The minimum distance in pixels
+ *
+ * @internal
+ */
+function pointToLineSegmentDistance(point: PointType, line: LineShape): number {
+  const x1 = line.x
+  const y1 = line.y
+  const x2 = line.x + line.props.endX
+  const y2 = line.y + line.props.endY
+
+  // Vector from line start to point
+  const A = point.x - x1
+  const B = point.y - y1
+
+  // Vector of the line segment
+  const C = x2 - x1
+  const D = y2 - y1
+
+  // Project point onto line (normalized parameter t)
+  const dot = A * C + B * D
+  const lenSq = C * C + D * D
+
+  // Handle degenerate case (zero-length line)
+  if (lenSq === 0) {
+    return Math.hypot(A, B)
   }
 
-  const cos = Math.cos(rotation)
-  const sin = Math.sin(rotation)
+  // Clamp t to [0, 1] to stay within the segment
+  const t = Math.max(0, Math.min(1, dot / lenSq))
 
-  // Center point
-  const cx = x + width / 2
-  const cy = y + height / 2
+  // Find nearest point on segment
+  const nearestX = x1 + t * C
+  const nearestY = y1 + t * D
 
-  // Four corners relative to center
-  const relativeCorners = [
-    { x: -width / 2, y: -height / 2 }, // Top-left
-    { x: width / 2, y: -height / 2 }, // Top-right
-    { x: width / 2, y: height / 2 }, // Bottom-right
-    { x: -width / 2, y: height / 2 }, // Bottom-left
-  ]
-
-  // Rotate each corner around center
-  return relativeCorners.map(
-    (corner) =>
-      ({
-        x: cx + corner.x * cos - corner.y * sin,
-        y: cy + corner.x * sin + corner.y * cos,
-      }) as Point
-  )
+  // Return distance to nearest point
+  return Math.hypot(point.x - nearestX, point.y - nearestY)
 }

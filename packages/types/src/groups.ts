@@ -9,8 +9,9 @@
  */
 
 import { createGroupId, GroupId, ShapeId } from './ids'
-import { getRotatedCorners, getShapeBounds, type Shape } from './shapes'
-import type { Box } from './geometry'
+import { getRotatedCorners, getShapeAABB, type Shape } from './shapes'
+import { Box } from './geometry'
+import type { Box as BoxType } from './geometry'
 
 // ============================================================================
 // Group Interface
@@ -105,9 +106,9 @@ export interface Group {
  * // { x: 100, y: 100, width: 180, height: 110 }
  * ```
  */
-export function computeAABB(shapes: Shape[]): Box {
+export function computeAABB(shapes: Shape[]): BoxType {
   if (shapes.length === 0) {
-    return { x: 0, y: 0, width: 0, height: 0, rotation: 0 }
+    return Box.create(0, 0, 0, 0)
   }
 
   let minX = Infinity
@@ -116,34 +117,16 @@ export function computeAABB(shapes: Shape[]): Box {
   let maxY = -Infinity
 
   for (const shape of shapes) {
-    // Get shape bounds based on type
-    const bounds = getShapeBounds(shape)
+    // Get shape AABB (handles rotation internally)
+    const aabb = getShapeAABB(shape)
 
-    // For rotated shapes, compute the AABB of the rotated rectangle
-    if (shape.rotation !== 0) {
-      const corners = getRotatedCorners(shape)
-      for (const corner of corners) {
-        minX = Math.min(minX, corner.x)
-        minY = Math.min(minY, corner.y)
-        maxX = Math.max(maxX, corner.x)
-        maxY = Math.max(maxY, corner.y)
-      }
-    } else {
-      // No rotation, use bounds directly
-      minX = Math.min(minX, bounds.x)
-      minY = Math.min(minY, bounds.y)
-      maxX = Math.max(maxX, bounds.x + bounds.width)
-      maxY = Math.max(maxY, bounds.y + bounds.height)
-    }
+    minX = Math.min(minX, aabb.x)
+    minY = Math.min(minY, aabb.y)
+    maxX = Math.max(maxX, aabb.x + aabb.width)
+    maxY = Math.max(maxY, aabb.y + aabb.height)
   }
 
-  return {
-    x: minX,
-    y: minY,
-    width: maxX - minX,
-    height: maxY - minY,
-    rotation: 0, // AABB is always axis-aligned
-  }
+  return Box.create(minX, minY, maxX - minX, maxY - minY)
 }
 
 // ============================================================================

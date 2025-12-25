@@ -3,6 +3,7 @@ import { Shape } from './shapes'
 import { Comment } from './comment'
 import { Binding } from './bindings'
 import { Group } from './groups'
+import { Box } from './geometry'
 
 /**
  * Document - The root container for all shapes, comments, and bindings

@@ -1,9 +1,9 @@
 import { BindingId, CommentId, DocumentId, GroupId, ShapeId } from './ids'
-import { Shape } from './shapes'
+import { isPointInShape, Shape } from './shapes'
 import { Comment } from './comment'
 import { Binding } from './bindings'
 import { Group } from './groups'
-import { Box } from './geometry'
+import { Box, Point } from './geometry'
 
 /**
  * Document - The root container for all shapes, comments, and bindings

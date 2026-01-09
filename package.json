@@ -10,7 +10,9 @@
   "scripts": {
     "dev": "pnpm --parallel dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "lint": "pnpm -r lint",
     "type-check": "pnpm -r type-check",
@@ -19,11 +21,13 @@
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
     "@playwright/test": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
     "eslint": "catalog:",
     "husky": "catalog:",
     "lint-staged": "catalog:",
     "prettier": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

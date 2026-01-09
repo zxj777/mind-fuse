@@ -17,6 +17,8 @@ catalog:
 
   # 测试工具
   "@playwright/test": ^1.40.0
+  vitest: ^4.0.0
+  "@vitest/coverage-v8": ^4.0.0
 
   # Git Hooks
   husky: ^9.0.0

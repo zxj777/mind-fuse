@@ -1,4 +1,3 @@
-import RBush from 'rbush'
 import * as Y from 'yjs'
 import {
   Binding,
@@ -13,21 +12,14 @@ import {
   Shape,
   ShapeId,
 } from '@mind-fuse/types'
-
-type SpatialItem = {
-  minX: number
-  minY: number
-  maxX: number
-  maxY: number
-  shapeId: ShapeId
-}
+import SpatialGrid from './SpatialGrid'
 
 /**
  * DocumentManager - In-memory view over a Yjs-backed document with a spatial index.
  *
  * @remarks
  * - Shapes/comments/bindings/groups are stored in Yjs maps (keys are strings).
- * - A RBush spatial index is maintained incrementally for fast hit-testing.
+ * - A Grid spatial index is maintained for fast hit-testing.
  */
 export class DocumentManager {
   private readonly yDoc: Y.Doc
@@ -35,8 +27,7 @@ export class DocumentManager {
   private readonly commentsMap: Y.Map<Comment>
   private readonly bindingsMap: Y.Map<Binding>
   private readonly groupsMap: Y.Map<Group>
-  private readonly spatialIndex: RBush<SpatialItem>
-  private readonly spatialItemsByShapeId: Map<ShapeId, SpatialItem>
+  private readonly spatialGrid: SpatialGrid
 
   public constructor(yDoc: Y.Doc) {
     this.yDoc = yDoc
@@ -44,10 +35,8 @@ export class DocumentManager {
     this.commentsMap = this.yDoc.getMap<Comment>('comments')
     this.bindingsMap = this.yDoc.getMap<Binding>('bindings')
     this.groupsMap = this.yDoc.getMap<Group>('groups')
-    this.spatialIndex = new RBush<SpatialItem>()
-    this.spatialItemsByShapeId = new Map<ShapeId, SpatialItem>()
+    this.spatialGrid = new SpatialGrid()
     this.setupObservers()
-    this.rebuildSpatialIndex()
   }
 
   public getShape(shapeId: ShapeId): Shape | undefined {
@@ -87,21 +76,18 @@ export class DocumentManager {
   }
 
   public findShapeAtPoint(point: Point): Shape | undefined {
-    const candidates: SpatialItem[] = this.spatialIndex.search({
-      minX: point.x,
-      minY: point.y,
-      maxX: point.x,
-      maxY: point.y,
-    })
+    const candidates: ShapeId[] = this.spatialGrid.queryPoint(point)
     let result: Shape | undefined
-    for (const item of candidates) {
-      const shape: Shape | undefined = this.getShape(item.shapeId)
+    for (const shapeId of candidates) {
+      const shape: Shape | undefined = this.getShape(shapeId)
       if (!shape) {
         continue
       }
+
       if (!isPointInShape(point, shape)) {
         continue
       }
+
       if (!result || DocumentManager.compareShapeZ(shape, result) > 0) {
         result = shape
       }
@@ -131,46 +117,24 @@ export class DocumentManager {
     for (const [key, change] of event.changes.keys) {
       const shapeId: ShapeId = DocumentManager.fromYKey(key)
       if (change.action === 'delete') {
-        this.removeFromSpatialIndex(shapeId)
+        this.spatialGrid.remove(shapeId)
         continue
       }
-      const shape: Shape | undefined = this.shapesMap.get(key)
-      if (!shape) {
-        continue
+      if (change.action === 'update') {
+        const shape: Shape | undefined = this.shapesMap.get(key)
+        if (!shape) {
+          continue
+        }
+        this.spatialGrid.update(shape.id, getShapeAABB(shape))
       }
-      this.upsertInSpatialIndex(shape)
+      if (change.action === 'add') {
+        const shape: Shape | undefined = this.shapesMap.get(key)
+        if (!shape) {
+          continue
+        }
+        this.spatialGrid.insert(shape.id, getShapeAABB(shape))
+      }
     }
-  }
-
-  private rebuildSpatialIndex(): void {
-    this.spatialIndex.clear()
-    this.spatialItemsByShapeId.clear()
-    for (const [, shape] of this.shapesMap.entries()) {
-      this.upsertInSpatialIndex(shape)
-    }
-  }
-
-  private upsertInSpatialIndex(shape: Shape): void {
-    this.removeFromSpatialIndex(shape.id)
-    const aabb = getShapeAABB(shape)
-    const item: SpatialItem = {
-      minX: aabb.x,
-      minY: aabb.y,
-      maxX: aabb.x + aabb.width,
-      maxY: aabb.y + aabb.height,
-      shapeId: shape.id,
-    }
-    this.spatialItemsByShapeId.set(shape.id, item)
-    this.spatialIndex.insert(item)
-  }
-
-  private removeFromSpatialIndex(shapeId: ShapeId): void {
-    const existing: SpatialItem | undefined = this.spatialItemsByShapeId.get(shapeId)
-    if (!existing) {
-      return
-    }
-    this.spatialIndex.remove(existing)
-    this.spatialItemsByShapeId.delete(shapeId)
   }
 
   private static compareShapeZ(a: Shape, b: Shape): number {

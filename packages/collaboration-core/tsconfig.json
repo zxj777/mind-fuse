@@ -5,6 +5,6 @@
     "outDir": "./dist",
     "types": ["vitest/globals"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "__tests__/SpatialGrid.test.ts"],
   "exclude": ["node_modules", "dist"]
 }

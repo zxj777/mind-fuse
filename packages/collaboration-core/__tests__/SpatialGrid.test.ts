@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import SpatialGrid from './SpatialGrid'
+import SpatialGrid from '../src/SpatialGrid'
 import { Point, type ShapeId } from '@mind-fuse/types'
 
 describe('SpatialGrid', () => {

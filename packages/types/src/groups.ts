@@ -9,7 +9,7 @@
  */
 
 import { createGroupId, GroupId, ShapeId } from './ids'
-import { getRotatedCorners, getShapeAABB, type Shape } from './shapes'
+import { getShapeAABB, type Shape } from './shapes'
 import { Box } from './geometry'
 import type { Box as BoxType } from './geometry'
 

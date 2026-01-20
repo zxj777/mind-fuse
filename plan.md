@@ -4,9 +4,9 @@
 
 **Mind-Fuse** 是一个技术优先的开源协作白板项目。核心目标：
 
-1. **技术深度**：自研 CRDT 算法，深入理解分布式协作原理
-2. **工程质量**：现代化的多语言架构（Go + Rust + TypeScript）
-3. **AI 原生**：Agent 作为核心架构，不是后加的功能
+1. **AI 原生**：Semantic-First 架构，支持 AI 生成流程图、架构图、时序图、类图
+2. **技术深度**：自研 CRDT 算法，深入理解分布式协作原理
+3. **工程质量**：现代化的多语言架构（Go + Rust + TypeScript）
 4. **开发者友好**：清晰的架构设计，完整的技术文档
 
 ---
@@ -724,6 +724,144 @@ export async function recognizeSketch(
 
 ---
 
+## AI 图表生成架构设计 ⭐⭐⭐
+
+### 核心架构：Semantic-First, Geometry-Derived
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         用户界面                                     │
+│   ┌──────────────┐              ┌─────────────────────────────────┐ │
+│   │  AI 聊天面板  │              │      Canvas (PixiJS)            │ │
+│   │  自然语言输入 │              │      拖拽编辑 / 渲染            │ │
+│   └──────┬───────┘              └────────────────▲────────────────┘ │
+│          │                                       │                   │
+│          │ (1) 用户请求                          │ (6) 渲染          │
+│          ▼                                       │                   │
+│   ┌──────────────┐                               │                   │
+│   │   AI Agent   │                               │                   │
+│   │ (Claude/GPT) │                               │                   │
+│   └──────┬───────┘                               │                   │
+│          │                                       │                   │
+│          │ (2) 结构化 JSON                       │                   │
+│          ▼                                       │                   │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │            SEMANTIC LAYER (Source of Truth)                 │   │
+│   │  ┌───────────────────────────────────────────────────────┐  │   │
+│   │  │  DiagramDocument                                      │  │   │
+│   │  │  - nodes: Map<NodeId, SemanticNode>                  │  │   │
+│   │  │  - edges: Map<EdgeId, SemanticEdge>                  │  │   │
+│   │  │  - positionOverrides: Map<NodeId, ManualPosition>    │  │   │
+│   │  │  - conversation: ConversationTurn[]                  │  │   │
+│   │  └───────────────────────────────────────────────────────┘  │   │
+│   │                           │                                  │   │
+│   │                           │ (3) Yjs CRDT 同步                │   │
+│   └───────────────────────────┼──────────────────────────────────┘   │
+│                               │                                      │
+│                               │ (4) 布局计算                         │
+│                               ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                    LAYOUT ENGINE                             │   │
+│   │  Flowchart: Dagre | Architecture: Force | Sequence: Timeline │   │
+│   └───────────────────────────┬──────────────────────────────────┘   │
+│                               │                                      │
+│                               │ (5) 生成位置                         │
+│                               ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │              GEOMETRY CACHE (Derived - 不同步)               │   │
+│   │  - nodeGeometry: Map<NodeId, {x, y, width, height}>         │   │
+│   │  - edgePaths: Map<EdgeId, PathData>                         │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 数据模型分层
+
+| 层级 | 数据 | 同步方式 | 用途 |
+|------|------|----------|------|
+| **Semantic Layer** | DiagramDocument (节点、边、语义信息) | Yjs CRDT | AI 理解、多人协作 |
+| **Position Overrides** | 用户手动拖拽的位置 | Yjs CRDT (在 Semantic 中) | 保留用户调整 |
+| **Geometry Cache** | 计算后的坐标、路径 | 本地派生 (不同步) | 渲染用 |
+
+### 手动拖拽处理
+
+```typescript
+// 用户拖拽节点时
+if (shape 是 diagram 的一部分) {
+  // 更新 semantic model 中的 positionOverrides
+  diagram.positionOverrides.set(nodeId, { x, y, lockedAt: now })
+  // positionOverrides 会通过 CRDT 同步
+} else {
+  // 普通 shape，直接更新坐标
+}
+```
+
+### 布局更新策略
+
+| 操作 | 布局行为 |
+|------|----------|
+| AI 添加/删除节点 | 全量重新布局 |
+| AI 修改节点内容 | 部分重新布局 |
+| 用户拖拽节点 | **不重新布局**，记录 override |
+| 用户切换布局算法 | 清除 overrides，全量重新布局 |
+
+### Semantic 数据模型 (Flowchart 示例)
+
+```typescript
+// packages/types/src/diagrams/flowchart.ts
+
+interface FlowchartDocument {
+  id: DiagramId
+  type: 'flowchart'
+  metadata: {
+    title: string
+    layoutAlgorithm: 'dagre' | 'elk'
+  }
+  // 语义结构 (AI 可理解)
+  nodes: Map<DiagramNodeId, FlowchartNode>
+  edges: Map<DiagramEdgeId, FlowchartEdge>
+  // 用户手动调整的位置
+  positionOverrides: Map<DiagramNodeId, ManualPosition>
+  // 多轮对话历史
+  conversation: ConversationTurn[]
+}
+
+interface FlowchartNode {
+  id: DiagramNodeId
+  semanticType: 'start' | 'end' | 'process' | 'decision' | 'data' | 'subprocess'
+  label: string
+  description?: string
+}
+```
+
+### LLM 交互设计
+
+**LLM 输出格式**（结构化 JSON）：
+
+```json
+{
+  "action": "create | update | delete",
+  "nodes": [
+    { "id": null, "semanticType": "process", "label": "验证用户" }
+  ],
+  "edges": [
+    { "fromNodeId": "node1", "toNodeId": "node2", "semanticType": "flow" }
+  ],
+  "reasoning": "添加了验证步骤"
+}
+```
+
+### 支持的图表类型
+
+| 图表类型 | 语义模型 | 布局算法 | Phase |
+|----------|----------|----------|-------|
+| **流程图 (Flowchart)** | nodes + edges + decision | Dagre | Phase 1 |
+| **架构图 (Architecture)** | systems + services + deps | Force-directed | Phase 2 |
+| **时序图 (Sequence)** | actors + messages | Timeline | Phase 2 |
+| **类图 (Class)** | classes + relations | ELK | Phase 2 |
+
+---
+
 ## 开发路线图
 
 ### Phase 1: 核心白板 MVP (3-4 个月)
@@ -738,31 +876,39 @@ export async function recognizeSketch(
 
 #### 里程碑
 
-**Week 1-2: 项目初始化**
+**Week 1-2: 项目初始化 + 类型系统**
 - [ ] 创建 monorepo 结构（pnpm workspace）
 - [ ] 配置开发环境（Node.js、Go、Rust）
 - [ ] 搭建 CI/CD（GitHub Actions）
 - [ ] 配置 vanilla-extract + Vite
+- [ ] **扩展类型系统**：添加 DiagramId, DiagramNodeId, DiagramEdgeId
+- [ ] **定义语义模型**：FlowchartDocument, DiagramGeometryCache
 
-**Week 3-4: 渲染引擎**
+**Week 3-4: 渲染引擎 + DiagramManager**
 - [ ] PixiJS v8 集成（启用 WebGPU）
 - [ ] 无限画布（viewport、zoom、pan）
 - [ ] 基础图形渲染（矩形、圆形、线条、连接线）
-- [ ] 实现 Canvas Operations API 基础接口
+- [ ] **DiagramDocumentManager**：集成 Yjs 同步语义模型
+- [ ] **布局引擎**：集成 Dagre.js 用于流程图
 - [ ] E2E 测试（canvas 截图对比）
 
-**Week 5-6: 内容生成 Agent ⭐**
+**Week 5-6: AI 图表生成 Agent ⭐⭐⭐**
 - [ ] Agent SDK 骨架（BaseAgent、LLMProvider）
 - [ ] Claude/OpenAI API 集成
-- [ ] 内容生成 Agent 实现（文本 → 图表）
-- [ ] Prompt 工程和结构化输出
-- [ ] Agent 命令面板 UI（类似 Notion 的 /）
+- [ ] **DiagramGeneratorAgent 实现**（支持 4 种图表类型）
+- [ ] **LLM Context 序列化**（buildDiagramContext）
+- [ ] Prompt 工程和结构化输出（JSON Schema）
+- [ ] **多轮对话支持**（conversation history）
+- [ ] Chat UI 面板（类似 Notion 的 /）
 - [ ] 流式生成体验
 
-**Week 7-8: 编辑器核心**
+**Week 7-8: 画布交互 + 双向绑定**
 - [ ] 选择系统（单选、框选）
-- [ ] 拖拽变换（移动、缩放、旋转）
-- [ ] 撤销/重做
+- [ ] **Shape 拖拽 → Semantic positionOverride**（双向绑定核心）
+- [ ] **Semantic 变化 → Shape 更新**（自动重新布局）
+- [ ] 节点编辑（双击修改 label）
+- [ ] 连线工具
+- [ ] 撤销/重做（基于 Yjs UndoManager）
 - [ ] E2E 测试
 
 **Week 9-10: 实时协作**
@@ -783,7 +929,9 @@ export async function recognizeSketch(
 #### 交付物
 - ✅ 可用的白板应用
 - ✅ 实时协作功能
-- ✅ **内容生成 Agent**（文本 → 图表）
+- ✅ **AI 图表生成 Agent**（支持 4 种图表：流程图、架构图、时序图、类图）
+- ✅ **多轮对话式调整**（conversational refinement）
+- ✅ **Semantic-First 架构**（语义模型 + 自动布局）
 - ✅ AI 智能布局（Rust WASM）
 - ✅ 核心技术文档
 
@@ -795,40 +943,59 @@ export async function recognizeSketch(
 
 #### 重点工作
 
-**Month 4: 智能整理 Agent ⭐**
+**Month 4: 扩展图表类型 ⭐**
+- [ ] **Architecture Diagram 语义模型**（systems, services, dependencies）
+- [ ] **Force-directed 布局**（d3-force 或 Rust WASM）
+- [ ] **Sequence Diagram 语义模型**（actors, messages, lifelines）
+- [ ] **Timeline 布局算法**
+- [ ] **Class Diagram 语义模型**（classes, attributes, methods）
+- [ ] **ELK 布局集成**
+- [ ] AI Agent 支持 4 种图表类型生成
+
+**Month 5: 智能整理 Agent + 性能优化**
 - [ ] 画布内容分析（聚类、关系识别）
 - [ ] 自动分组和标签
 - [ ] 布局优化建议
-- [ ] 多轮对话优化
+- [ ] **大图虚拟化渲染**（viewport culling）
+- [ ] **布局计算 Web Worker**
+- [ ] **增量布局**（避免全量重算）
 
-**Month 5-6: 自研 CRDT**
+**Month 6-7: 自研 CRDT**
 - [ ] YATA 算法核心实现
 - [ ] 完整测试套件（单元 + 属性测试）
 - [ ] 性能基准（对比 Yjs）
 - [ ] WASM 编译
 
-**Month 7: Go-Rust 集成**
+**Month 6-7: 自研 CRDT**
+- [ ] YATA 算法核心实现
+- [ ] 完整测试套件（单元 + 属性测试）
+- [ ] 性能基准（对比 Yjs）
+- [ ] WASM 编译
+
+**Month 8: Go-Rust 集成**
 - [ ] Protocol Buffers 定义
 - [ ] Rust gRPC 服务
 - [ ] Go 客户端集成
 - [ ] 集成测试
 
-**Month 8: 并行运行 + 手绘识别**
+**Month 9: 并行运行 + 手绘识别**
 - [ ] Yjs 和自研 CRDT 并存
 - [ ] 环境变量切换
 - [ ] OpenAI Vision API 集成
 - [ ] 手绘 → 精确图形
 
-**Month 9: 文档和博客**
+**Month 10: 文档和博客**
 - [ ] CRDT.md 详细文档
+- [ ] DIAGRAMS.md AI 图表架构文档 ⭐
 - [ ] AGENT.md Agent 架构说明
-- [ ] 技术博客 2-3 篇
+- [ ] 技术博客 3-4 篇
 
 #### 交付物
 - ✅ 自研 CRDT 达到生产可用
+- ✅ **4 种图表类型完整支持**
 - ✅ **智能整理 Agent**
 - ✅ AI 手绘识别功能
-- ✅ 完整技术文档
+- ✅ 完整技术文档（包括 DIAGRAMS.md）
 - ✅ 性能对比报告
 
 ---
@@ -855,43 +1022,56 @@ export async function recognizeSketch(
    - 实现细节
    - 性能测试结果
 
-4. **AGENT.md** - Agent 架构设计
+4. **DIAGRAMS.md** - AI 图表生成架构 ⭐
+   - Semantic-First 架构设计
+   - 数据模型分层（Semantic / Geometry）
+   - 布局引擎策略
+   - LLM 交互设计
+   - 4 种图表类型详解
+
+5. **AGENT.md** - Agent 架构设计
    - Agent SDK 设计
-   - 已实现 Agent（内容生成、智能整理）
+   - 已实现 Agent（图表生成、智能整理）
    - LLM Provider 抽象
    - 扩展指南
 
-5. **AI.md** - AI 算法设计
+6. **AI.md** - AI 算法设计
    - 智能布局算法
    - 手绘识别
    - 未来扩展方向
 
-6. **PERFORMANCE.md** - 性能优化
+7. **PERFORMANCE.md** - 性能优化
    - 性能指标
    - 优化策略
    - 测试报告
 
 ### 技术博客主题
 
-1. **《为白板工具构建 AI Agent：从 Prompt 到图表》**
+1. **《AI 原生的图表生成：Semantic-First 架构实践》** ⭐
+   - 为什么语义优先？
+   - 双模型架构（Semantic + Geometry）
+   - 手动编辑 vs AI 生成的平衡
+   - 布局引擎选择与集成
+
+2. **《为白板工具构建 AI Agent：从 Prompt 到图表》**
    - Agent 架构设计
    - LLM 结构化输出
    - 流式生成体验
    - Prompt 工程实践
 
-2. **《从零实现白板的实时协作：CRDT 算法实践》**
+3. **《从零实现白板的实时协作：CRDT 算法实践》**
    - CRDT 原理
    - YATA 算法详解
    - Rust 实现
    - 性能对比
 
-3. **《用 Rust WASM 加速前端布局算法》**
+4. **《用 Rust WASM 加速前端布局算法》**
    - 力导向图算法
    - Rust 实现和优化
    - WASM 集成
    - 性能提升分析
 
-4. **《Go 和 Rust 的混合架构实践》**
+5. **《Go 和 Rust 的混合架构实践》**
    - 为什么需要多语言
    - gRPC 集成方案
    - 实战经验
@@ -991,9 +1171,10 @@ docker-compose up -d
    - 性能优化（Rust WASM）
 
 2. **AI 原生**
-   - **Agent 前置**：渲染引擎后立即开发，成为画布的第一个"用户"
-   - 内容生成 Agent（文本 → 图表）
-   - 智能整理 Agent（自动分组/布局）
+   - **Semantic-First 架构**：语义模型作为唯一真相源
+   - **AI 图表生成**：支持流程图、架构图、时序图、类图
+   - **多轮对话调整**：conversational refinement
+   - **AI + 手动编辑**：双向绑定，无缝协作
    - 可扩展的 Agent SDK
 
 3. **务实路线**
@@ -1008,8 +1189,9 @@ docker-compose up -d
 
 ### 核心优势
 
+- ✅ **AI 图表生成能力强大**：4 种图表类型，对话式调整，自动布局
+- ✅ **Semantic-First 架构清晰**：语义模型 + 几何缓存，AI 和人类都能理解
 - ✅ **技术栈现代且有深度**：不是简单的框架堆砌
-- ✅ **AI Agent 架构清晰**：Canvas Operations API + Agent SDK
 - ✅ **架构设计合理**：分层清晰，职责明确
 - ✅ **文档完整**：代码 + 文档 = 完整的技术展示
 
@@ -1017,18 +1199,19 @@ docker-compose up -d
 
 | 时间点 | 里程碑 | 核心交付 |
 |--------|--------|----------|
-| Week 4 | 渲染引擎完成 | 可渲染元素的画布 |
-| Week 6 | **Agent 可用** | 文本 → 图表的完整链路 |
-| Week 10 | 协作完成 | 多人实时编辑 |
-| Month 4 | 智能整理 | 第二个 Agent |
+| Week 4 | 渲染引擎 + DiagramManager 完成 | 可渲染元素的画布 + 语义模型同步 |
+| Week 6 | **AI 图表生成可用** ⭐⭐⭐ | 文本 → 4 种图表的完整链路 |
+| Week 8 | 双向绑定完成 | AI 生成 + 手动编辑无缝协作 |
+| Week 10 | 实时协作完成 | 多人同时编辑图表 |
+| Month 4 | 4 种图表类型全部支持 | Flowchart + Architecture + Sequence + Class |
 | Month 6 | 自研 CRDT | 核心技术深度 |
 
 ### 下一步行动
 
-1. **本周**：初始化项目结构
-2. **Week 1-2**：搭建基础框架
-3. **Week 3-4**：实现渲染引擎 + Canvas Operations API
-4. **Week 5-6**：实现内容生成 Agent ⭐
+1. **本周**：初始化项目结构 + 扩展类型系统
+2. **Week 1-2**：搭建基础框架 + 语义模型定义
+3. **Week 3-4**：实现渲染引擎 + DiagramDocumentManager + 布局引擎
+4. **Week 5-6**：实现 AI 图表生成 Agent ⭐⭐⭐
 5. **持续**：编写技术文档和博客
 
 ---

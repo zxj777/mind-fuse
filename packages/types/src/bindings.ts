@@ -1,4 +1,5 @@
-import { BindingId, CommentId, createBindingId, ShapeId } from './ids'
+import type { BindingId, CommentId, ShapeId } from './ids'
+import { createBindingId } from './ids'
 
 /**
  * Normalized coordinates (0-1 range) for positioning relative to a shape's bounds
@@ -98,7 +99,7 @@ export const connectorBinding = {
     fromId: ShapeId,
     terminal: 'start' | 'end',
     toId: ShapeId,
-    toAnchor?: NormalizedPoint
+    toAnchor?: NormalizedPoint,
   ): ConnectorBinding {
     return {
       id: createBindingId(),

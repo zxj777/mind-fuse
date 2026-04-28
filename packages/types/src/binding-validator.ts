@@ -9,10 +9,11 @@
  * @packageDocumentation
  */
 
-import { Shape, isConnectorShape, isBindableTarget } from './shapes'
-import { ConnectorBinding, CommentBinding } from './bindings'
-import { ShapeId } from './ids'
-import { Comment } from './comment'
+import type { CommentBinding, ConnectorBinding } from './bindings'
+import type { Comment } from './comment'
+import type { ShapeId } from './ids'
+import type { Shape } from './shapes'
+import { isBindableTarget, isConnectorShape } from './shapes'
 
 // ============================================================================
 // Validation Errors
@@ -85,7 +86,7 @@ export class InvalidBindingTargetError extends BindingValidationError {
  */
 export function validateConnectorBinding(
   binding: ConnectorBinding,
-  shapes: Map<ShapeId, Shape>
+  shapes: Map<ShapeId, Shape>,
 ): void {
   // Check fromId exists
   const fromShape = shapes.get(binding.fromId)
@@ -123,7 +124,7 @@ export function validateConnectorBinding(
 export function validateCommentBinding(
   binding: CommentBinding,
   comments: Map<string, Comment>,
-  shapes: Map<ShapeId, Shape>
+  shapes: Map<ShapeId, Shape>,
 ): void {
   // Check fromId exists
   const comment = comments.get(binding.fromId)
@@ -167,7 +168,7 @@ export function validateCommentBinding(
  */
 export function getAffectedBindings(
   shapeId: ShapeId,
-  bindings: Map<string, ConnectorBinding | CommentBinding>
+  bindings: Map<string, ConnectorBinding | CommentBinding>,
 ): Array<ConnectorBinding | CommentBinding> {
   const affected: Array<ConnectorBinding | CommentBinding> = []
 

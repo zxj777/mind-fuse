@@ -1,271 +1,163 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides repository-specific guidance for coding agents working on Mind-Fuse.
 
 ## Project Overview
 
-Mind-Fuse is an AI-native collaborative whiteboard application (similar to Miro/FigJam) with self-implemented CRDT for real-time collaboration. The project emphasizes technical depth and modern engineering practices.
+Mind-Fuse is a **canvas-native technical investigation workspace** for high-cognitive-load developers.
 
-**Core Technologies:**
-- Frontend: Next.js 15, PixiJS v8 (WebGL/WebGPU), TypeScript
-- Backend: Go (Huma v2, nhooyr.io/websocket) + Rust (CRDT, AI algorithms)
-- Collaboration: Yjs (Phase 1) → Self-implemented CRDT in Rust (Phase 2)
-- Testing: Vitest (unit/integration), Playwright (E2E)
+The product is not a generic AI whiteboard, and it is not a diagram generator. The product core is the Investigation domain plus the workspace surface that lets users capture material, turn it into questions/evidence/hypotheses/conclusions, and revisit that reasoning later.
+
+Authoritative strategy docs:
+
+- `docs/product-strategy.md`
+- `docs/REMEDIATION_PLAN.md`
+- `docs/AI_BOUNDARY.md`
+
+## Product Structure
+
+Mind-Fuse now has two clearly separated entry surfaces:
+
+- `apps/web` — management surface for login, investigation list, account, billing, and settings
+- `apps/workspace` — canvas-native work surface for the investigation experience itself
+
+Do not collapse these back into one app surface. The rendering model, dependencies, and UX responsibilities are intentionally different.
 
 ## Repository Structure
 
-This is a monorepo managed with pnpm workspaces:
+This is a pnpm workspace monorepo:
 
-- `apps/web/` - Next.js frontend application
-- `apps/api-go/` - Go backend service (planned)
-- `apps/crdt-server/` - Rust CRDT service (Phase 2, planned)
-- `packages/` - Shared TypeScript packages
-  - `types/` - Core type definitions (shapes, bindings, groups, comments)
-  - `collaboration-core/` - DocumentManager and spatial indexing
-  - `utils/`, `store/`, `editor/`, etc. - Other shared packages
-- `crates/` - Rust workspace (CRDT core, WASM bindings, AI layout algorithms)
-- `docs/` - Architecture documentation and design methodology
+- `apps/web/` — management surface, regular Next.js app, no PixiJS imports
+- `apps/workspace/` — investigation work surface shell, renders the canvas via package abstractions
+- `packages/types/` — canvas substrate types (`ids`, `geometry`, `shapes`, `bindings`, `groups`, `comment`)
+- `packages/collaboration-core/` — Yjs-backed `DocumentManager` and `SpatialGrid`
+- `packages/investigation/` — Investigation domain model and `InvestigationDocumentManager`
+- `packages/editor/` — PixiJS v8 rendering and interaction engine
+- `packages/store/` — application state for selection, viewport, suggestion queue, and workspace UI state
+- `packages/ai-sdk/` — AI suggestion protocol and mock suggestion generation
+- `packages/schema/` — Investigation import/export and versioned serialization
+- `packages/validate/` — Zod runtime validation for entity/shape invariants and AI suggestions
+- `packages/utils/` — shared utilities
+
+Archived material lives under `docs/archive/` and should not drive new implementation decisions.
+
+## Core Product Constraints
+
+1. **Investigation is the product core.** The canvas substrate supports the product, but it is not the product definition.
+2. **Every Investigation entity needs canvas representation.** Core objects cannot exist only in a sidebar or list.
+3. **`apps/web` is not the canvas.** Keep management concerns separate from work-surface concerns.
+4. **PixiJS v8 is the only canvas rendering pipeline.** Do not add SVG/DOM transitional rendering for geometry, connectors, selection, or viewport logic.
+5. **AI can suggest, not act.** AI output must stay in suggestion form until the user explicitly accepts it.
 
 ## Common Commands
 
 ### Development
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Run all workspaces in parallel
 pnpm dev
-
-# Run specific workspace (e.g., web app)
 pnpm --filter web dev
-
-# Run from a specific package directory
-cd packages/types && pnpm dev
+pnpm --filter workspace dev
 ```
 
-### Building
+### Build
 
 ```bash
-# Build all packages
 pnpm build
-
-# Build specific package
-pnpm --filter @mind-fuse/types build
-
-# Clean all build artifacts
-pnpm clean
+pnpm --filter @mind-fuse/investigation build
+pnpm --filter @mind-fuse/editor build
 ```
 
-### Testing
+### Validation
 
 ```bash
-# Run all tests (uses Vitest)
-pnpm test
-
-# Run tests in watch mode
-pnpm test
-
-# Run specific test file
-pnpm test packages/collaboration-core/__tests__/DocumentManager.test.ts
-
-# Run tests with coverage
-pnpm test:coverage
-
-# Run E2E tests (Playwright)
-pnpm test:e2e
-```
-
-### Linting and Type Checking
-
-```bash
-# Lint all packages
 pnpm lint
-
-# Type check all packages
 pnpm type-check
+pnpm test
+pnpm test:coverage
 ```
 
 ## Architecture Notes
 
-### Type System Architecture
+### Substrate vs Domain
 
-The `@mind-fuse/types` package is the foundation. Key design principles:
+`@mind-fuse/types` and `@mind-fuse/collaboration-core` are substrate packages. They provide reusable canvas and Yjs primitives.
 
-1. **Branded Types for IDs**: All IDs use TypeScript branded types to prevent mixing different ID types
-   - `ShapeId`, `BindingId`, `GroupId`, `CommentId`, etc.
-   - Factory functions: `createShapeId()`, `createBindingId()`, etc.
+`@mind-fuse/investigation` is the domain package. It owns the entities that define the product:
 
-2. **Layered Type Definitions**: Types are organized in dependency layers
-   - Layer 1: Primitives (`Point`, `Box`, `Color`) and IDs
-   - Layer 2: Entities (`Shape`, `Binding`, `Group`, `Comment`)
-   - Layer 3: Document and aggregates
-   - Layer 4: Operations and validators
+- `Investigation`
+- `CaptureItem`
+- `Source`
+- `Question`
+- `Evidence`
+- `Hypothesis`
+- `Conclusion`
+- `Snapshot`
+- `CanvasBinding`
 
-3. **Shape Types**: Union discriminated by `type` field
-   - `RectShape`, `EllipseShape`, `LineShape`, `TextShape`
-   - Common fields: `id`, `x`, `y`, `rotation`, `index`, `isLocked`, `parentId`
-   - Shape-specific `props` field
+### Investigation state model
 
-4. **File Paths Always Use Relative Paths**: When working with files in this repository, always use relative paths (e.g., `packages/types/src/shapes.ts`) rather than absolute paths.
+The product organizes work around questions, evidence, hypotheses, and conclusions:
 
-### DocumentManager and Spatial Indexing
+```ts
+type QuestionStatus = 'open' | 'active' | 'parked' | 'closed'
+type HypothesisStatus = 'proposed' | 'supported' | 'refuted' | 'inconclusive'
+type ConclusionStatus = 'hypothesis' | 'verified' | 'rejected' | 'outdated'
+```
 
-The `DocumentManager` class (`packages/collaboration-core/src/DocumentManager.ts`) is the core abstraction:
+Do not weaken `ConclusionStatus` into decorative labels; it is part of the product trust model.
 
-- **Purpose**: In-memory view over a Yjs-backed document with spatial indexing
-- **Data Storage**: Uses Yjs Maps for shapes/comments/bindings/groups
-- **Spatial Index**: Maintains a `SpatialGrid` for fast hit-testing and viewport queries
-- **Observer Pattern**: Automatically updates spatial index when Yjs data changes
-- **Key Methods**:
-  - `addShape()`, `removeShape()`, `updateShape()` - CRUD operations
-  - `findShapeAtPoint()` - Hit testing with z-index ordering
-  - `getShapes()`, `getBindings()`, etc. - Read-only access to collections
+### Canvas binding invariant
 
-The `SpatialGrid` class provides O(1) spatial queries:
-- Grid-based spatial partitioning (200px cells)
-- Handles shapes spanning multiple cells
-- Supports negative coordinates
-- Methods: `insert()`, `remove()`, `update()`, `query()`, `queryPoint()`
+Every core Investigation entity that appears on the canvas must have a corresponding `ShapeId` binding.
 
-### CRDT Strategy
+- Entity creation must create the shape and binding transactionally.
+- Shape deletion should archive the linked entity rather than erase investigation history.
+- AI must not directly edit shape geometry.
 
-**Phase 1 (Current)**: Using Yjs for rapid prototyping
-- Yjs provides mature CRDT implementation
-- WebSocket synchronization via `nhooyr.io/websocket`
-- Abstraction layer in `packages/collaboration/` for future migration
+### AI boundary
 
-**Phase 2 (Planned)**: Self-implemented CRDT in Rust
-- YATA algorithm implementation in `crates/crdt-core/`
-- WASM bindings for frontend (`crates/crdt-wasm/`)
-- gRPC service in Rust (`apps/crdt-server/`)
+Allowed AI outputs:
 
-### Testing Strategy
+- candidate questions from captured material
+- candidate hypotheses and conclusion drafts
+- evidence ↔ hypothesis relation suggestions
+- layout suggestions as ghost layers
+- snapshot summary drafts
 
-Tests follow a pyramid structure (70% unit, 25% integration, 5% E2E):
+Disallowed AI behavior:
 
-1. **Unit Tests**: Single function correctness (Vitest)
-   - Located in `__tests__/` directories or `.test.ts` files
-   - Use `describe()`, `it()`, `expect()` from Vitest
-   - Global test utilities available (configured in `vitest.config.ts`)
+- directly editing `x/y` or other shape geometry
+- upgrading a conclusion to `verified` without explicit user action
+- proactive push notifications or modal interruptions
+- cross-investigation auto-merging
 
-2. **Integration Tests**: Multi-module collaboration
-   - Test DocumentManager + SpatialGrid integration
-   - Test Yjs synchronization scenarios
+## Implementation Guidance
 
-3. **E2E Tests**: Real user scenarios (Playwright)
-   - Canvas rendering, multi-user collaboration
-   - Located in `apps/web/e2e/` (when implemented)
+### Type system
 
-**Coverage Requirements**:
-- Target: ≥80% for core packages (`types`, `collaboration-core`)
-- Run `pnpm test:coverage` to generate reports
+- Keep branded IDs for every persistent entity type.
+- Prefer immutable updates and pure helper functions.
+- Reuse canvas substrate helpers from `@mind-fuse/types` instead of duplicating shape math.
 
-### Code Quality Tools
+### Rendering and interaction
 
-- **ESLint**: Uses `@antfu/eslint-config` (flat config)
-  - Auto-detects TypeScript and React
-  - Config: `eslint.config.js`
-  - Test files have relaxed rules
+- `pixi.js` should only be imported inside `@mind-fuse/editor`.
+- `apps/web` and `apps/workspace` should consume package-level abstractions, not raw PixiJS APIs.
+- DOM overlays are acceptable for text editing and lightweight controls, but the actual canvas scene, selection, connectors, and viewport should stay in PixiJS.
 
-- **TypeScript**: Strict mode enabled
-  - Base config: `tsconfig.base.json`
-  - Per-package configs extend base
-  - Key flags: `noUncheckedIndexedAccess`, `noUnusedLocals`, `strict: true`
+### Testing
 
-- **Prettier**: Code formatting
-  - Integrated with lint-staged for pre-commit hooks
+- Use Vitest for package tests.
+- Domain and validation logic need direct unit tests.
+- Editor tests should focus on logic that can be validated without browser-heavy E2E setup, such as viewport math or render-data derivation.
 
-- **Husky + lint-staged**: Pre-commit hooks
-  - Auto-lint and format on commit
+## Current Priority
 
-### Package Management
+The current repository priority is executing `docs/REMEDIATION_PLAN.md`:
 
-- **Package Manager**: pnpm (version ≥8.0.0)
-- **Catalog Feature**: Shared dependency versions in `pnpm-workspace.yaml`
-  - Use `"catalog:"` in package.json for shared deps
-  - Example: `"typescript": "catalog:"` → resolves to `^5.3.0`
-
-- **Workspace Protocol**: Internal packages use `workspace:*`
-  - Example: `"@mind-fuse/types": "workspace:*"`
-
-### Build Configuration
-
-- **TypeScript Packages**: Use `tsup` for building
-  - Outputs both ESM (`dist/index.mjs`) and CJS (`dist/index.js`)
-  - DTS generation enabled
-  - Build script: `tsup src/index.ts --format cjs,esm --dts`
-
-- **Development Mode**: Packages expose source files directly
-  - `exports["."].development` points to `./src/index.ts`
-  - Enables faster iteration without rebuilding
-
-## Important Design Patterns
-
-### Immutability and Pure Functions
-
-- Prefer pure functions that return new objects
-- Avoid mutating shapes/documents directly
-- Use spread operators for updates: `{ ...shape, x: newX }`
-
-### ID-Based References
-
-- Always reference entities by ID, never by object reference
-- Prevents circular dependencies and simplifies serialization
-- Example: `Group.memberIds: ShapeId[]` not `members: Shape[]`
-
-### Validation and Type Guards
-
-- Use type guard functions: `isRectShape()`, `isConnectorBinding()`
-- Runtime validation with Zod (in `@mind-fuse/validate` package)
-- Binding validators ensure structural integrity
-
-### Z-Index Ordering
-
-- Shapes use `index` field (fractional indexing string, e.g., "a0", "a1")
-- Comparison: lexicographic string ordering
-- Tiebreaker: ShapeId (ensures deterministic ordering)
-
-## Key Documentation
-
-Refer to these files for deeper understanding:
-
-- `plan.md` - Overall technical roadmap and architecture decisions
-- `docs/DESIGN_METHODOLOGY.md` - Design principles and methodology
-- `docs/ARCHITECTURE.md` - System architecture (when created)
-- `docs/CRDT.md` - CRDT design (when created)
-- `packages/types/EXAMPLES.md` - Type usage examples
-- `.progress/` - Development progress and milestones
-
-## Development Workflow
-
-1. **Before Making Changes**: Read relevant types in `packages/types/src/`
-2. **Writing Tests**: Write tests first (TDD recommended)
-3. **Type Safety**: Let TypeScript guide you - no `any` types
-4. **Commit Messages**: Follow conventional commits format
-5. **PR Process**: All tests must pass before merging
-
-## Current Development Phase
-
-**Status**: Phase 1 - MVP Development (Week 1-4)
-
-**Recently Completed**:
-- ✅ Monorepo setup with pnpm workspaces
-- ✅ Core type definitions (`@mind-fuse/types`)
-- ✅ DocumentManager with SpatialGrid
-- ✅ Comprehensive test suite for DocumentManager and SpatialGrid
-- ✅ Vitest integration for unit testing
-
-**Next Steps**:
-- Implement editor package with PixiJS rendering
-- Build infinite canvas (viewport, zoom, pan)
-- Create basic shape rendering (rect, ellipse, line)
-- Develop Canvas Operations API for Agent integration
-
-## Notes for Claude Code
-
-- This project values **technical depth** over rapid feature shipping
-- **Documentation is critical** - update docs when making architectural changes
-- **Test coverage matters** - aim for ≥80% on core packages
-- The codebase follows a **mentor-driven learning approach** (see `.cursor/rules/rule.mdc`)
-- When uncertain about architecture decisions, refer to design docs or ask clarifying questions
+1. Align docs and narrative to the investigation workspace direction.
+2. Remove obsolete placeholder packages and old diagram remnants.
+3. Establish the Investigation domain package and runtime validation.
+4. Build the workspace surface through package abstractions.
+5. Keep the old whiteboard/diagram narrative archived, not active.

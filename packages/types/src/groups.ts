@@ -8,10 +8,12 @@
  * @packageDocumentation
  */
 
-import { createGroupId, GroupId, ShapeId } from './ids'
-import { getShapeAABB, type Shape } from './shapes'
-import { Box } from './geometry'
 import type { Box as BoxType } from './geometry'
+import type { GroupId, ShapeId } from './ids'
+import type { Shape } from './shapes'
+import { Box } from './geometry'
+import { createGroupId } from './ids'
+import { getShapeAABB } from './shapes'
 
 // ============================================================================
 // Group Interface
@@ -206,7 +208,7 @@ export const group = {
    */
   updateBounds(group: Group, shapes: Map<ShapeId, Shape>): Group {
     const memberShapes = Array.from(group.memberIds)
-      .map((id) => shapes.get(id))
+      .map(id => shapes.get(id))
       .filter((s): s is Shape => s !== undefined)
 
     const bounds = computeAABB(memberShapes)
@@ -343,5 +345,5 @@ export function isInGroup(shape: Shape): boolean {
  * @returns Array of shapes in the group
  */
 export function getGroupMembers(groupId: GroupId, shapes: Map<ShapeId, Shape>): Shape[] {
-  return Array.from(shapes.values()).filter((s) => s.groupId === groupId)
+  return Array.from(shapes.values()).filter(s => s.groupId === groupId)
 }

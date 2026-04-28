@@ -2,7 +2,7 @@
   "name": "mind-fuse",
   "version": "0.1.0",
   "private": true,
-  "description": "AI-native collaborative whiteboard with self-implemented CRDT",
+  "description": "Canvas-native technical investigation workspace for high-cognitive-load developers",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=8.0.0"
@@ -10,10 +10,11 @@
   "scripts": {
     "dev": "pnpm --parallel dev",
     "build": "pnpm -r build",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
+    "test": "pnpm exec vitest run",
+    "test:run": "pnpm exec vitest run",
+    "test:watch": "pnpm exec vitest",
+    "test:coverage": "pnpm exec vitest run --coverage",
+    "test:e2e": "pnpm exec playwright test",
     "lint": "pnpm -r lint",
     "type-check": "pnpm -r type-check",
     "clean": "pnpm -r clean && rm -rf node_modules"

@@ -1,8 +1,8 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
-};
+  transpilePackages: ['@mind-fuse/investigation', '@mind-fuse/schema'],
+}
 
-export default nextConfig;
+export default nextConfig

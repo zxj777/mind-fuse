@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import type { ShapeId } from '@mind-fuse/types'
+import { Point } from '@mind-fuse/types'
+import { beforeEach, describe, expect, it } from 'vitest'
 import SpatialGrid from '../src/SpatialGrid'
-import { Point, type ShapeId } from '@mind-fuse/types'
 
-describe('SpatialGrid', () => {
+describe('spatialGrid', () => {
   let grid: SpatialGrid
 
   beforeEach(() => {
@@ -76,7 +77,7 @@ describe('SpatialGrid', () => {
       grid.insert(shapeId, { x: 100, y: 100, width: 500, height: 500 })
 
       const result = grid.query({ x: 0, y: 0, width: 800, height: 800 })
-      const count = result.filter((id) => id === shapeId).length
+      const count = result.filter(id => id === shapeId).length
       expect(count).toBe(1)
     })
   })

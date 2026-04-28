@@ -2,13 +2,17 @@
   "name": "web",
   "version": "0.1.0",
   "private": true,
+  "description": "Management surface for Mind-Fuse investigations",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@mind-fuse/investigation": "workspace:*",
+    "@mind-fuse/schema": "workspace:*",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

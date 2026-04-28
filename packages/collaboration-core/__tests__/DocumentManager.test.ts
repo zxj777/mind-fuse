@@ -1,16 +1,16 @@
-import { DocumentManager } from '../src/DocumentManager'
-import { describe, it, expect, beforeEach } from 'vitest'
+import type { Shape, ShapeId } from '@mind-fuse/types'
 import {
-  createRectShape,
   createLineShape,
+  createRectShape,
   createShapeId,
   Point,
-  type Shape,
-  type ShapeId,
-} from '@mind-fuse/types'
-import * as Y from 'yjs'
 
-describe('DocumentManager', () => {
+} from '@mind-fuse/types'
+import { beforeEach, describe, expect, it } from 'vitest'
+import * as Y from 'yjs'
+import { DocumentManager } from '../src/DocumentManager'
+
+describe('documentManager', () => {
   let ydoc: Y.Doc
   let dm: DocumentManager
 
@@ -19,7 +19,7 @@ describe('DocumentManager', () => {
     dm = new DocumentManager(ydoc)
   })
 
-  describe('Constructor', () => {
+  describe('constructor', () => {
     it('should initialize with empty maps', () => {
       expect(dm.getShapes().size).toBe(0)
       expect(dm.getComments().size).toBe(0)
@@ -275,7 +275,7 @@ describe('DocumentManager', () => {
     })
   })
 
-  describe('ID type conversion (toYKey/fromYKey)', () => {
+  describe('iD type conversion (toYKey/fromYKey)', () => {
     it('should handle ShapeId to Yjs key conversion', () => {
       const shapeId = createShapeId('test-123')
       const shape = createRectShape({ id: shapeId, x: 0, y: 0 })
@@ -292,11 +292,11 @@ describe('DocumentManager', () => {
 
     it('should handle multiple shapes with different IDs', () => {
       const ids: ShapeId[] = ['alpha', 'beta', 'gamma'].map((suffix: string) => createShapeId(suffix))
-      const pairs: Array<{ id: ShapeId; shape: Shape }> = ids.map((id: ShapeId) => {
+      const pairs: Array<{ id: ShapeId, shape: Shape }> = ids.map((id: ShapeId) => {
         const shape: Shape = createRectShape({ id, x: 0, y: 0 })
         return { id, shape }
       })
-      pairs.forEach((pair) => dm.addShape(pair.shape))
+      pairs.forEach(pair => dm.addShape(pair.shape))
       // Verify all shapes are retrievable
       pairs.forEach((pair) => {
         expect(dm.getShape(pair.id)).toBe(pair.shape)
@@ -340,7 +340,7 @@ describe('DocumentManager', () => {
     })
   })
 
-  describe('Observer synchronization', () => {
+  describe('observer synchronization', () => {
     it('should setup observers on construction', () => {
       // Verify observer is working by adding a shape and checking spatial query
       const shape = createRectShape({

@@ -1,16 +1,18 @@
-import * as Y from 'yjs'
-import {
+import type {
   Binding,
   BindingId,
   Comment,
   CommentId,
-  getShapeAABB,
   Group,
   GroupId,
-  isPointInShape,
   Point,
   Shape,
   ShapeId,
+} from '@mind-fuse/types'
+import type * as Y from 'yjs'
+import {
+  getShapeAABB,
+  isPointInShape,
 } from '@mind-fuse/types'
 import SpatialGrid from './SpatialGrid'
 

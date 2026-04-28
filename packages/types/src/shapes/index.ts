@@ -2,44 +2,52 @@
 // Base Shape
 // ============================================================================
 
+// ============================================================================
+// Shape Union
+// ============================================================================
+
+import type { Box as BoxType, Point as PointType } from '../geometry'
+import type { LineShape } from './line'
+
+// ============================================================================
+// Polymorphic Utility Functions
+// ============================================================================
+
+import type { RectShape } from './rect'
+import { getLineAABB, getLineCenter, getLineEndpoints, isPointOnLine } from './line'
+import { getRectAABB, getRectCenter, getRotatedRectCorners, isPointInRect } from './rect'
+
 export type { BaseShape } from './base'
 
 // ============================================================================
 // Rect Shape
 // ============================================================================
 
-export type { RectShape } from './rect'
+export type { ArrowStyle, LineShape, PathType } from './line'
 export {
-  isRectShape,
-  createRectShape,
-  getRectAABB,
-  getRectCenter,
-  getRotatedRectCorners,
-  isPointInRect,
-} from './rect'
+  createLineShape,
+  getLineAABB,
+  getLineCenter,
+  getLineEndpoints,
+  isBindableTarget,
+  isConnectorShape,
+  isLineShape,
+  isPointOnLine,
+} from './line'
 
 // ============================================================================
 // Line Shape
 // ============================================================================
 
-export type { LineShape, ArrowStyle, PathType } from './line'
+export type { RectShape } from './rect'
 export {
-  isLineShape,
-  isConnectorShape,
-  isBindableTarget,
-  createLineShape,
-  getLineAABB,
-  getLineCenter,
-  getLineEndpoints,
-  isPointOnLine,
-} from './line'
-
-// ============================================================================
-// Shape Union
-// ============================================================================
-
-import type { RectShape } from './rect'
-import type { LineShape } from './line'
+  createRectShape,
+  getRectAABB,
+  getRectCenter,
+  getRotatedRectCorners,
+  isPointInRect,
+  isRectShape,
+} from './rect'
 
 /**
  * Shape - Union of all shape types
@@ -48,14 +56,6 @@ import type { LineShape } from './line'
  * Note: Groups are NOT shapes. They are separate entities defined in groups.ts
  */
 export type Shape = RectShape | LineShape
-
-// ============================================================================
-// Polymorphic Utility Functions
-// ============================================================================
-
-import type { Point as PointType, Box as BoxType } from '../geometry'
-import { getRectAABB, getRectCenter, getRotatedRectCorners, isPointInRect } from './rect'
-import { getLineAABB, getLineCenter, getLineEndpoints, isPointOnLine } from './line'
 
 /**
  * Gets the axis-aligned bounding box (AABB) for any shape

@@ -1,5 +1,9 @@
 # Miro AI 图表生成文案
 
+> ARCHIVED REFERENCE: 本文档仅保留为历史参考资料，不代表 Mind-Fuse 当前产品方向。
+>
+> 当前正式方向是 **canvas-native technical investigation workspace**，以 `docs/product-strategy.md` 和 `docs/REMEDIATION_PLAN.md` 为准。
+
 > 用于在 Miro 中使用 AI 功能生成领域建模、数据流和状态机图表
 >
 > 基于 packages/types 的实际类型定义

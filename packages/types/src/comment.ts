@@ -11,7 +11,8 @@
  * @packageDocumentation
  */
 
-import { CommentId, ReplyId, UserId, createCommentId, createReplyId } from './ids'
+import type { CommentId, ReplyId, UserId } from './ids'
+import { createCommentId, createReplyId } from './ids'
 
 // ============================================================================
 // Comment Interface

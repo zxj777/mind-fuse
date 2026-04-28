@@ -1,4 +1,4 @@
-import { Box, Point, ShapeId } from '@mind-fuse/types'
+import type { Box, Point, ShapeId } from '@mind-fuse/types'
 
 const GRID_SIZE = 200
 
@@ -33,7 +33,8 @@ class SpatialGrid {
 
   public remove(shapeId: ShapeId): void {
     const cells = this.shapeToCells.get(shapeId)
-    if (!cells) return
+    if (!cells)
+      return
     for (const cell of cells) {
       this.cells.get(cell)?.delete(shapeId)
 
@@ -45,9 +46,11 @@ class SpatialGrid {
   }
 
   private isCellsEqual(cells1: Set<string>, cells2: Set<string>): boolean {
-    if (cells1.size !== cells2.size) return false
+    if (cells1.size !== cells2.size)
+      return false
     for (const cell of cells1) {
-      if (!cells2.has(cell)) return false
+      if (!cells2.has(cell))
+        return false
     }
     return true
   }
@@ -56,7 +59,8 @@ class SpatialGrid {
     const oldCells = this.shapeToCells.get(shapeId)
     const newCells = new Set(this.getCoveredCells(bounds))
 
-    if (oldCells && this.isCellsEqual(oldCells, newCells)) return
+    if (oldCells && this.isCellsEqual(oldCells, newCells))
+      return
 
     this.remove(shapeId)
     this.insert(shapeId, bounds)

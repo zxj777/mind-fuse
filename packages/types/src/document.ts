@@ -1,8 +1,8 @@
-import { BindingId, CommentId, DocumentId, GroupId, ShapeId } from './ids'
-import { Shape } from './shapes'
-import { Comment } from './comment'
-import { Binding } from './bindings'
-import { Group } from './groups'
+import type { Binding } from './bindings'
+import type { Comment } from './comment'
+import type { Group } from './groups'
+import type { BindingId, CommentId, DocumentId, GroupId, ShapeId } from './ids'
+import type { Shape } from './shapes'
 
 /**
  * Document - The root container for all shapes, comments, and bindings

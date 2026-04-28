@@ -1,7 +1,7 @@
-import { BaseShape } from './base'
-import { ShapeId } from '../ids'
-import { Box, Point } from '../geometry'
 import type { Box as BoxType, Point as PointType } from '../geometry'
+import type { ShapeId } from '../ids'
+import type { BaseShape } from './base'
+import { Box, Point } from '../geometry'
 
 /**
  * RectShape - A rectangle with fill and stroke
@@ -131,8 +131,8 @@ export function getRotatedRectCorners(shape: RectShape): Array<PointType> {
   ]
 
   // Rotate each corner around center
-  return relativeCorners.map((corner) =>
-    Point.create(cx + corner.x * cos - corner.y * sin, cy + corner.x * sin + corner.y * cos)
+  return relativeCorners.map(corner =>
+    Point.create(cx + corner.x * cos - corner.y * sin, cy + corner.x * sin + corner.y * cos),
   )
 }
 

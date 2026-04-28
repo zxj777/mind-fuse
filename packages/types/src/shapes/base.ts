@@ -1,4 +1,4 @@
-import { GroupId, ShapeId } from '../ids'
+import type { GroupId, ShapeId } from '../ids'
 
 /**
  * BaseShape - Common properties for all shapes

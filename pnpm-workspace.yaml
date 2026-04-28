@@ -14,11 +14,14 @@ catalog:
 
   # 构建工具
   tsup: ^8.0.1
+  pixi.js: ^8.14.0
 
   # 测试工具
   "@playwright/test": ^1.40.0
   vitest: ^4.0.0
   "@vitest/coverage-v8": ^4.0.0
+  zod: ^3.24.3
+  yjs: ^13.6.28
 
   # Git Hooks
   husky: ^9.0.0

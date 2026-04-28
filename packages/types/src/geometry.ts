@@ -1,3 +1,5 @@
+/* eslint-disable ts/no-redeclare */
+
 export interface Point {
   x: number
   y: number
@@ -31,7 +33,7 @@ interface BoxBounds {
   readonly maxY: number
 }
 
-const getBoxBounds = (box: Box): BoxBounds => {
+function getBoxBounds(box: Box): BoxBounds {
   const x2: number = box.x + box.width
   const y2: number = box.y + box.height
   return { minX: Math.min(box.x, x2), minY: Math.min(box.y, y2), maxX: Math.max(box.x, x2), maxY: Math.max(box.y, y2) }
@@ -85,8 +87,8 @@ export const Box = {
     if (points.length === 0) {
       return { x: 0, y: 0, width: 0, height: 0 }
     }
-    const xs = points.map((p) => p.x)
-    const ys = points.map((p) => p.y)
+    const xs = points.map(p => p.x)
+    const ys = points.map(p => p.y)
     const minX = Math.min(...xs)
     const maxX = Math.max(...xs)
     const minY = Math.min(...ys)
